@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package micro;
+
+//path fill gen pb models
+// bp/micro: path will geneate models
+// micro:   package name
+option go_package = "pb/micro;micro";
+
+//import 
+import "google/protobuf/struct.proto";
+import "google/api/annotations.proto";
+
+
+message MicroRequest {
+  string token = 1;
+  string method_name = 2;
+  google.protobuf.Struct data = 3;
+}
+
+message MicroResponse {
+  int32  code = 1;
+  string msg = 2;
+  int64 total = 3;
+  google.protobuf.Struct data = 4;
+}
+
+service MicroService{
+  rpc Handler(MicroRequest) returns (MicroResponse){
+    option (google.api.http) = {
+      post : "/api/handler"
+      body : "*"
+    };
+  };
+}
