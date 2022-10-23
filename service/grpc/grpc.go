@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/jwt"
 	//"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/goonma/sdk/pubsub/kafka"
@@ -24,6 +25,7 @@ type GRPCServer struct {
 	config *vault.Vault
 	//grpc server
 	service *grpc.Server
+	two_FA_Key  string
 }
 
 func (grpcSRV *GRPCServer) Initial(service_name string){
@@ -68,11 +70,13 @@ func (grpcSRV *GRPCServer) Initial(service_name string){
 	}
 	//new grpc server
 	maxMsgSize := 1024 * 1024 * 1024 //1GB
+	//read 2FA Key for verify token
+	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2FA")
 	//
 	grpcSRV.service= grpc.NewServer(
 		grpc.MaxRecvMsgSize(maxMsgSize), 
 		grpc.MaxSendMsgSize(maxMsgSize),
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authFunc)),//middleware verify authen
+		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(grpcSRV.authFunc)),//middleware verify authen
 	)
 }
 /*
@@ -123,23 +127,23 @@ func (grpcSRV *GRPCServer)GetConfig() *vault.Vault{
 	return grpcSRV.config
 }
 
-func authFunc(ctx context.Context) (context.Context, error) {
+func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error) {
+	//ignore check token
+	if os.Getenv("IGNORE_TOKEN")=="true"{
+		return ctx,nil
+	}
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	fmt.Println(token)
+	//fmt.Println(token)
 	if err != nil {
 		return nil, err
 	}
-
-	/*tokenInfo, err := parseToken(token)
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid auth token: %v", err)
+	_, err_v := jwt.VerifyJWTToken(grpcSRV.two_FA_Key,token)
+	if err_v != nil {
+		return nil, err_v
 	}
-
-	grpc_ctxtags.Extract(ctx).Set("auth.sub", userClaimFromToken(tokenInfo))
-
+	//grpc_ctxtags.Extract(ctx).Set("auth.sub", userClaimFromToken(tokenInfo))
 	// WARNING: in production define your own type to avoid context collisions
-	newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)
-	
-	return newCtx, nil*/
-	return nil,nil
+	//newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)
+	//return newCtx, nil*/
+	return ctx,nil
 }

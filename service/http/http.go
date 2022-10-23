@@ -2,7 +2,19 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/utils"
+	"github.com/goonma/sdk/db"
+	"github.com/goonma/sdk/service/micro"
+	"github.com/goonma/sdk/pubsub/kafka"
+	ed "github.com/goonma/sdk/eventdriven"
+	j "github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/config/vault"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/joho/godotenv"
+	"os"
+	"errors"
+	//"net/http"
+	"fmt"
 )
 type HTTPServer struct {
 	host        string
@@ -15,10 +27,13 @@ type HTTPServer struct {
 	//db map[string]dbconnection
 	Mgo  db.MongoDB
 	//event
-	Ed ed.EventDriven
+	Pub map[string]*ed.EventDriven
 	//micro client
-	Client map[string]*MicroClient
+	Client map[string]*micro.MicroClient
+	//serect key for JWT 
+	key string
 }
+
 /*
 args[0]: model list
 args[1]: not exist || exist && true then initial publisher, else don't implement publisher 
@@ -40,8 +55,8 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	sv.config= &config
 	sv.config.Initial(service_name)
 	//get config from key-value store
-	http_port_env:=grpcSRV.config.ReadVAR("micro/general/HTTP_PORT")
-	if micro_port_env!=""{
+	http_port_env:=sv.config.ReadVAR("http/HTTP_PORT")
+	if http_port_env!=""{
 		sv.port=http_port_env
 	}
 	//
@@ -52,7 +67,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	}
 	if os.Getenv("HTTP_PORT")!=""{
 		sv.port=os.Getenv("HTTP_PORT")
-	}else if http.host=="" {
+	}else if sv.host=="" {
 		sv.port="8080"		
 	}
 	//set service name
@@ -61,41 +76,43 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	if log.LogMode()!=2{// not in local, locall just output log to std
 		log_dest:=sv.config.ReadVAR("logger/general/LOG_DEST")
 		if log_dest=="kafka"{
-			config_map:=kafka.GetConfig(grpcSRV.config,"logger/kafka")
+			config_map:=kafka.GetConfig(sv.config,"logger/kafka")
 			log.SetDestKafka(config_map)
 		}
 	}
+	//read secret key for generate JWT
+	sv.key=sv.config.ReadVAR("key/API")
 	//publisher
 	if len(args)>1{
-		// load event_routing(event_name, bus_name) table/ event_mapping db
-		pub_path:=fmt.Sprintf("%s/%s/%s","api",sv.servicename,"pub/kafka")
-		check,err_p:=sv.config.CheckPathExist(path)
-		if err_p!=nil{
-			log.ErrorF(err_p.Msg(),sv.servicename,"Initial")
-		}
-		if check{
-			event_list:=sv.config.ListItemByPath(pub_path)
-			sv.Pub=make(map[string]*ed.EventDriven)
-			for _,event:=range event_list{
-				if !Map_PublisherContains(sv.Pub,event) && event!="general"{
-					sv.Pub[event]=&ed.EventDriven{}
-					//r.Pub[event].SetNoUpdatePublishTime(true)
-					err:=sv.Pub[event].InitialPublisherWithGlobal(sv.config,fmt.Sprintf("%s/%s",pub_path,event),"Router",event)
-					if err!=nil{
-						log.ErrorF(err.Msg(),sv.servicename,"Initial")
-					}
-				}
-			}
-		}
-	}else{
 		c,err:=utils.ItoBool(args[1])
 		if err!=nil{
 			log.Warn("Convert Iterface to Bool :"+err.Error(),"MICRO","HOST_NAME")
 		}
 		if utils.Type(args[1])=="bool" && c{
-			err_p:=micro.Ed.InitialPublisher(micro.Config,"eventbus/kafka",micro.Id)
+			// load event_routing(event_name, bus_name) table/ event_mapping db
+			pub_path:=fmt.Sprintf("%s/%s/%s","api",sv.servicename,"pub/kafka")
+			check,err_p:=sv.config.CheckPathExist(pub_path)
 			if err_p!=nil{
-				log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+				log.ErrorF(err_p.Msg(),sv.servicename,"Initial")
+			}
+			if check{
+				event_list:=sv.config.ListItemByPath(pub_path)
+				sv.Pub=make(map[string]*ed.EventDriven)
+				for _,event:=range event_list{
+					if !Map_PublisherContains(sv.Pub,event) && event!="general"{
+						sv.Pub[event]=&ed.EventDriven{}
+						//r.Pub[event].SetNoUpdatePublishTime(true)
+						err:=sv.Pub[event].InitialPublisherWithGlobal(sv.config,fmt.Sprintf("%s/%s",pub_path,event),sv.servicename,event)
+						if err!=nil{
+							log.ErrorF(err.Msg(),sv.servicename,"Initial")
+						}
+					}
+				}
+			}else{
+				err_p:=sv.Pub["main"].InitialPublisher(sv.config,"eventbus/kafka",sv.servicename)
+				if err_p!=nil{
+					log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+				}				
 			}
 		}
 	}
@@ -106,7 +123,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			if err!=nil{
 				log.ErrorF(err.Error(),"MICRO","INITIAL_CONVERTION_MODEL")
 			}else{
-				err_init:=micro.Mgo.Initial(micro.Config,models)
+				err_init:=sv.Mgo.Initial(sv.config,models)
 				if err_init!=nil{
 					log.Warn(err_init.Msg(),err_init.Group(),err_init.Key())
 				}
@@ -115,6 +132,23 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	}
 	//new server
 	sv.Srv=echo.New()
+	//
+	sv.Srv.HideBanner = true
+    sv.Srv.HidePort = true
+ 
+    sv.Srv.Use(middleware.Logger())
+    sv.Srv.Use(middleware.Recover())
+	//middleware verify JWT
+	config_jwt:= middleware.JWTConfig{
+		Claims:     &j.CustomClaims{},
+		SigningKey: []byte(sv.key),
+	}
+	/*
+	group route
+	g := e.Group("/admin", <your-middleware>)
+	g.GET("/secured", <your-handler>) =>/admin/secured
+	*/
+	sv.Srv.Use(middleware.JWTWithConfig(config_jwt))
 }
 
 //start
@@ -123,8 +157,39 @@ func (sv *HTTPServer) Start(){
 		log.Error("Please Initial before make new server")
 		os.Exit(0)
 	}
-	sv.Srv.Logger.Fatal(sv.Srv.Start(":1323"))
+	sv.Srv.Logger.Fatal(sv.Srv.Start(":"+sv.port))
 }
+func (sv *HTTPServer)Restricted(c echo.Context) error {
+	//user := c.Get("user").(*jwt.Token)
+	//claims := user.Claims.(*jwt.CustomClaims)
+	//name := claims.Name
+	//return c.String(http.StatusOK, "Welcome "+name+"!")
+	return errors.New("Access Deny")
+}
+/*
+func (sv *HTTPServer) JWTConfig() middleware.JWTConfig{
+	config := middleware.JWTConfig{
+		TokenLookup: "query:token",
+		ParseTokenFunc: func(auth string, c echo.Context) (interface{}, error) {
+			keyFunc := func(t *jwt.Token) (interface{}, error) {
+				if t.Method.Alg() != "HS256" {
+				return nil, fmt.Errorf("unexpected jwt signing method=%v", t.Header["alg"])
+				}
+				return sv.key, nil
+			}
+			// claims are of type `jwt.MapClaims` when token is created with `jwt.Parse`
+			token, err := jwt.Parse(auth, keyFunc)
+			if err != nil {
+				return nil, err
+			}
+			if !token.Valid {
+				return nil, errors.New("invalid token")
+			}
+			return token, nil
+		},
+  	}
+  	return config
+}*/
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
 	if len(m)==0{
 		return false
