@@ -81,7 +81,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 		}
 	}
 	//read secret key for generate JWT
-	sv.key=sv.config.ReadVAR("key/API")
+	sv.key=sv.config.ReadVAR("key/api/key")
 	//publisher
 	if len(args)>1{
 		c,err:=utils.ItoBool(args[1])

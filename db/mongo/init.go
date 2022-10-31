@@ -6,7 +6,19 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
-
+/*
+Write concern:
+	-[1]: primary only => default
+	-[2]: 1 primary + 1 secondary , same for 2,3...
+	-[0]: majority: (total node/2 + 1)   
+*/
+/*
+Read concern
+	- [1] primary node : read alway go to primary
+	- [2] primary nodePreferred: read go to primary, if primary die will to go secondary
+	- [3] secondary node: read go to secondary only
+	- [4] secondary nodePreferred: read go to secondary if die go to primary
+*/
 var (
 	after            = options.After
 	t                = true
@@ -36,6 +48,7 @@ func MapToDBConfig(m map[string]string) Configuration{
 		Username: m["USERNAME"],
 		Password: m["PASSWORD"],
 		AuthDB: m["AUTHDB"],
+		ReplicaSetName: m["RS_NAME"],
 	}
 	return cfg	
 }

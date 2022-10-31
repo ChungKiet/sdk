@@ -28,7 +28,7 @@ message MicroResponse {
 service MicroService{
   rpc Handler(MicroRequest) returns (MicroResponse){
     option (google.api.http) = {
-      post : "/api/handler"
+      get : "/api/handler"
       body : "*"
     };
   };

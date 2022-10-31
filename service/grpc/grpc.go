@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/jwt"
 	//"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/config/vault"
@@ -15,6 +16,7 @@ import (
 	"os/signal"
 	"syscall"
 	"context"
+	"errors"
 )
 
 type GRPCServer struct {
@@ -26,6 +28,7 @@ type GRPCServer struct {
 	//grpc server
 	service *grpc.Server
 	two_FA_Key  string
+	token_Key  string
 }
 
 func (grpcSRV *GRPCServer) Initial(service_name string){
@@ -71,7 +74,8 @@ func (grpcSRV *GRPCServer) Initial(service_name string){
 	//new grpc server
 	maxMsgSize := 1024 * 1024 * 1024 //1GB
 	//read 2FA Key for verify token
-	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2FA")
+	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2fa/key")
+	grpcSRV.token_Key=grpcSRV.config.ReadVAR("key/api/key")
 	//
 	grpcSRV.service= grpc.NewServer(
 		grpc.MaxRecvMsgSize(maxMsgSize), 
@@ -128,6 +132,7 @@ func (grpcSRV *GRPCServer)GetConfig() *vault.Vault{
 }
 
 func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error) {
+	fmt.Println(grpcSRV.servicename)
 	//ignore check token
 	if os.Getenv("IGNORE_TOKEN")=="true"{
 		return ctx,nil
@@ -137,10 +142,26 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if err != nil {
 		return nil, err
 	}
-	_, err_v := jwt.VerifyJWTToken(grpcSRV.two_FA_Key,token)
+	_, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
 	if err_v != nil {
 		return nil, err_v
 	}
+	//verify permision base on service name + method name
+	method_route,res:=grpc.Method(ctx)
+	if !res{
+		return nil,errors.New("Access Deny")
+	}
+	if method_route==""{
+		return nil,errors.New("Method is empty")
+	}
+	arr:=utils.Explode(method_route,"/")
+	if len(arr)!=2{
+		return nil,errors.New("Method invalid")
+	}
+	method:=arr[2]
+	fmt.Println(method)
+	//
+
 	//grpc_ctxtags.Extract(ctx).Set("auth.sub", userClaimFromToken(tokenInfo))
 	// WARNING: in production define your own type to avoid context collisions
 	//newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)

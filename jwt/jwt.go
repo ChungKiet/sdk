@@ -22,11 +22,11 @@ func GenerateJWTToken(key_sign,user_id,role_id,username,email string,expired int
 		email,
 		jwt.RegisteredClaims{
 			// A usual scenario is to set the expiration time relative to the current time
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expired) * time.Minute)),			
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expired) *  time.Second)),			
 			Issuer:    "Goonma.com",
 		},
 	}
-	fmt.Printf("%+v\r\n",claims)
+	//fmt.Printf("%+v\r\n",claims)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	res, err := token.SignedString(signingKey)
 	if err!=nil{
@@ -42,7 +42,7 @@ func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
 		return []byte(key), nil
 	})
 	claim, ok := token.Claims.(*CustomClaims); 
-	fmt.Printf("%+v\r\n",token.Claims)
+	//fmt.Printf("%+v\r\n",token.Claims)
 	if ok && token.Valid {
 		return claim,nil
 	} 
