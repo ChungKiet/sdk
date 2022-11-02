@@ -74,8 +74,8 @@ func (grpcSRV *GRPCServer) Initial(service_name string){
 	//new grpc server
 	maxMsgSize := 1024 * 1024 * 1024 //1GB
 	//read 2FA Key for verify token
-	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2fa/key")
-	grpcSRV.token_Key=grpcSRV.config.ReadVAR("key/api/key")
+	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2fa/KEY")
+	grpcSRV.token_Key=grpcSRV.config.ReadVAR("key/api/KEY")
 	//
 	grpcSRV.service= grpc.NewServer(
 		grpc.MaxRecvMsgSize(maxMsgSize), 
@@ -159,7 +159,7 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 		return nil,errors.New("Method invalid")
 	}
 	method:=arr[2]
-	fmt.Println(method)
+	//fmt.Println(method)
 	//
 
 	//grpc_ctxtags.Extract(ctx).Set("auth.sub", userClaimFromToken(tokenInfo))

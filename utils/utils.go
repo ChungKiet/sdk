@@ -177,12 +177,23 @@ func ItoDictionary(value interface{}) (map[string]interface{},error){
 		return nil, errors.New("ItoDictionary=>_DATA_ROW_TYPE_NOT_SUPPORT_")
 	}
 }
-//convert interface to Dictionary
+//convert interface to Dictionary String
 func ItoDictionaryS(value interface{}) (map[string]string,error){
 	whereType := reflect.TypeOf(value).Kind()
 	switch whereType {
 	case reflect.Map:
 		row_map := value.(map[string]string)
+		return row_map,nil
+	default:
+		return nil, errors.New("ItoDictionary=>_DATA_ROW_TYPE_NOT_SUPPORT_")
+	}
+}
+//convert interface to Dictionary Bool
+func ItoDictionaryBool(value interface{}) (map[string]bool,error){
+	whereType := reflect.TypeOf(value).Kind()
+	switch whereType {
+	case reflect.Map:
+		row_map := value.(map[string]bool)
 		return row_map,nil
 	default:
 		return nil, errors.New("ItoDictionary=>_DATA_ROW_TYPE_NOT_SUPPORT_")
@@ -230,6 +241,11 @@ func Dictionary() map[string]interface{}{
 //init dictionary string
 func DictionaryString() map[string]string{
 	res:=make(map[string]string)
+	return res
+}
+//init dictionary bool
+func DictionaryBool() map[string]bool{
+	res:=make(map[string]bool)
 	return res
 }
 //Convert Int to String

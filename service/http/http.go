@@ -10,10 +10,14 @@ import (
 	j "github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/joho/godotenv"
 	"os"
 	"errors"
-	//"net/http"
+	"net/http"
+	"os/signal"
+	"context"
+	"time"
 	"fmt"
 )
 type HTTPServer struct {
@@ -32,12 +36,15 @@ type HTTPServer struct {
 	Client map[string]*micro.MicroClient
 	//serect key for JWT 
 	key string
+	//ACL
+	Acl map[string]interface{}
 }
 
 /*
 args[0]: model list
 args[1]: not exist || exist && true then initial publisher, else don't implement publisher 
 args[2]: micro client list map[string]string (name - endpoint address)
+args[3]: route white list not check JWT
 */
 
 func (sv *HTTPServer) Initial(service_name string,args...interface{}){
@@ -81,7 +88,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 		}
 	}
 	//read secret key for generate JWT
-	sv.key=sv.config.ReadVAR("key/api/key")
+	sv.key=sv.config.ReadVAR("key/api/KEY")
 	//publisher
 	if len(args)>1{
 		c,err:=utils.ItoBool(args[1])
@@ -130,6 +137,23 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			}
 		}
 	}
+	//
+	var routes_ignore_jwt []string
+	var errh error
+	if len(args)>3{
+		routes_ignore_jwt,errh=utils.ItoSliceString(args[3])
+		if errh!=nil{
+			log.Warn(errh.Error(),"HttpServerInit","RoutesIgnoreJWT")
+		}
+	
+	}
+	if len(args)>4{
+		var err error
+		sv.Acl,err=utils.ItoDictionary(args[4])
+		if err!=nil{
+			log.Warn(errh.Error(),"HttpServerInit","ACL")
+		}
+	}
 	//new server
 	sv.Srv=echo.New()
 	//
@@ -139,9 +163,39 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
     sv.Srv.Use(middleware.Logger())
     sv.Srv.Use(middleware.Recover())
 	//middleware verify JWT
+	//tk,_:=j.GenerateJWTToken(sv.key,"1","1","son","son@mail.com",6000000000)
+	//fmt.Println(tk)
 	config_jwt:= middleware.JWTConfig{
 		Claims:     &j.CustomClaims{},
 		SigningKey: []byte(sv.key),
+		SigningMethod: jwt.SigningMethodHS512.Name,
+		//ContextKey:       "user",
+		TokenLookup:      "header:" + echo.HeaderAuthorization+",query:token",
+		//TokenLookupFuncs: nil,
+		AuthScheme:       "Bearer",
+		//KeyFunc:          nil,
+		Skipper: func(c echo.Context) bool {
+			if utils.Contains(routes_ignore_jwt,c.Request().URL.Path) {
+			  return true
+			}
+			return false
+		},
+		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
+			Claims_info,err:=j.VerifyJWTToken(sv.key,token)
+			if err!=nil{
+				return nil,err 
+			}
+			if utils.MapI_contains(sv.Acl,Claims_info.RoleID){
+				m_acl,err:=utils.ItoDictionaryBool(sv.Acl[Claims_info.RoleID])
+				if err!=nil{
+					return nil,err
+				}
+				if m_acl[c.Request().URL.Path] {
+					return token,nil
+				}
+			}
+			return nil,errors.New("_ACCESS_DENY_")
+		},
 	}
 	/*
 	group route
@@ -157,7 +211,25 @@ func (sv *HTTPServer) Start(){
 		log.Error("Please Initial before make new server")
 		os.Exit(0)
 	}
-	sv.Srv.Logger.Fatal(sv.Srv.Start(":"+sv.port))
+	//
+	fmt.Println(fmt.Sprintf("HTTP Server start at: %s:%s", sv.host, sv.port))
+	// Start server
+	go func() {
+		if err := sv.Srv.Start(":"+sv.port); err != nil && err != http.ErrServerClosed {
+			sv.Srv.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds. 
+	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := sv.Srv.Shutdown(ctx); err != nil {
+		sv.Srv.Logger.Fatal(err)
+	}
 }
 func (sv *HTTPServer)Restricted(c echo.Context) error {
 	//user := c.Get("user").(*jwt.Token)
