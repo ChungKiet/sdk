@@ -158,7 +158,7 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if len(arr)!=2{
 		return nil,errors.New("Method invalid")
 	}
-	method:=arr[2]
+	//method:=arr[2]
 	//fmt.Println(method)
 	//
 
