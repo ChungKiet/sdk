@@ -175,12 +175,18 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 		AuthScheme:       "Bearer",
 		//KeyFunc:          nil,
 		Skipper: func(c echo.Context) bool {
+			if os.Getenv("IGNORE_TOKEN")=="true"{
+				return true
+			}
 			if utils.Contains(routes_ignore_jwt,c.Request().URL.Path) {
 			  return true
 			}
 			return false
 		},
 		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
+			if os.Getenv("IGNORE_TOKEN")=="true"{
+				return nil,nil
+			}
 			Claims_info,err:=j.VerifyJWTToken(sv.key,token)
 			if err!=nil{
 				return nil,err 

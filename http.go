@@ -22,6 +22,7 @@ func main(){
 	//whitelist route
 	whitelist_routes=[]string{"/hello"}
 	//**********ACL*************
+	acl=utils.Dictionary()
 	//ACL-role 1
 	role_1:=utils.DictionaryBool()
 	role_1["/login"]=true
