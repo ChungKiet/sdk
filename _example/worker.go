@@ -1,6 +1,6 @@
 package main 
 import (
-	"github.com/goonma/sdk/service/worker"
+	worker "github.com/goonma/sdk/service/worker/event"
 	//ev "github.com/goonma/sdk/eventdriven"
 	//"github.com/goonma/sdk/log"
 	//"github.com/goonma/sdk/pubsub/kafka"	

@@ -10,9 +10,10 @@ type CustomClaims struct {
 	RoleID string `json:"roleid"`
 	Username string `json:"username"`
 	Email string  `json:"email"`
+	Type string  `json:"type"`
 	jwt.RegisteredClaims
 }
-func GenerateJWTToken(key_sign,user_id,role_id,username,email string,expired int) (string,error){
+func GenerateJWTToken(key_sign,user_id,role_id,username,email,ttype string,expired int) (string,error){
 	signingKey := []byte(key_sign)
 	// Create the claims
 	claims := CustomClaims{
@@ -20,6 +21,7 @@ func GenerateJWTToken(key_sign,user_id,role_id,username,email string,expired int
 		role_id,
 		username,
 		email,
+		ttype,
 		jwt.RegisteredClaims{
 			// A usual scenario is to set the expiration time relative to the current time
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expired) *  time.Second)),			
@@ -27,7 +29,7 @@ func GenerateJWTToken(key_sign,user_id,role_id,username,email string,expired int
 		},
 	}
 	//fmt.Printf("%+v\r\n",claims)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	res, err := token.SignedString(signingKey)
 	if err!=nil{
 		return "",err
@@ -36,7 +38,7 @@ func GenerateJWTToken(key_sign,user_id,role_id,username,email string,expired int
 }
 func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
 	token, err := jwt.ParseWithClaims(token_string, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(key), nil
