@@ -7,13 +7,13 @@ import(
 
 type CustomClaims struct {
 	UserID string `json:"userid"`
-	RoleID string `json:"roleid"`
+	RoleID int `json:"roleid"`
 	Username string `json:"username"`
 	Email string  `json:"email"`
 	Type string  `json:"type"`
 	jwt.RegisteredClaims
 }
-func GenerateJWTToken(key_sign,user_id,role_id,username,email,ttype string,expired int) (string,error){
+func GenerateJWTToken(key_sign,user_id,username,email,ttype string,role_id,expired int) (string,error){
 	signingKey := []byte(key_sign)
 	// Create the claims
 	claims := CustomClaims{
