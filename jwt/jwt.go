@@ -13,7 +13,7 @@ type CustomClaims struct {
 	Type string  `json:"type"`
 	jwt.RegisteredClaims
 }
-func GenerateJWTToken(key_sign,user_id,username,email,ttype string,role_id,expired int) (string,error){
+func GenerateJWTToken(key_sign,user_id,username,email,ttype string, role_id,expired int) (string,error){
 	signingKey := []byte(key_sign)
 	// Create the claims
 	claims := CustomClaims{
@@ -29,7 +29,7 @@ func GenerateJWTToken(key_sign,user_id,username,email,ttype string,role_id,expir
 		},
 	}
 	//fmt.Printf("%+v\r\n",claims)
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	res, err := token.SignedString(signingKey)
 	if err!=nil{
 		return "",err
@@ -38,7 +38,7 @@ func GenerateJWTToken(key_sign,user_id,username,email,ttype string,role_id,expir
 }
 func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
 	token, err := jwt.ParseWithClaims(token_string, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(key), nil

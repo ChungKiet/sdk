@@ -163,7 +163,11 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
     sv.Srv.Use(middleware.Logger())
     sv.Srv.Use(middleware.Recover())
 	//middleware verify JWT
-	//tk,_:=j.GenerateJWTToken(sv.key,"1","1","son","son@mail.com",6000000000)
+	//tk,err:=j.GenerateJWTToken(sv.key,"1","goonma","test@goonma.com","LOGIN",1,600000000000000)
+	//if err!=nil{
+	// log.ErrorF(errh.Error(),"HttpServerInit","JWT")
+	//}
+	//fmt.Println("err gen tk:%+v\r\n",err)
 	//fmt.Println(tk)
 	config_jwt:= middleware.JWTConfig{
 		Claims:     &j.CustomClaims{},
@@ -191,8 +195,8 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			if err!=nil{
 				return nil,err 
 			}
-			if utils.MapI_contains(sv.Acl,Claims_info.RoleID){
-				m_acl,err:=utils.ItoDictionaryBool(sv.Acl[Claims_info.RoleID])
+			if utils.MapI_contains(sv.Acl,utils.ItoString(Claims_info.RoleID)){
+				m_acl,err:=utils.ItoDictionaryBool(sv.Acl[utils.ItoString(Claims_info.RoleID)])
 				if err!=nil{
 					return nil,err
 				}
