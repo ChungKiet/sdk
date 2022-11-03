@@ -132,43 +132,7 @@ func (grpcSRV *GRPCServer)GetConfig() *vault.Vault{
 
 	return grpcSRV.config
 }
-func (grpcSRV *GRPCServer)GetUserID(ctx context.Context) string{
-	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	//fmt.Println(token)
-	if err != nil {
-		return ""
-	}
-	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
-	if err_v != nil {
-		return ""
-	}
-	return claims.UserID 
-}
 
-func (grpcSRV *GRPCServer)GetRoleID(ctx context.Context) int{
-	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	//fmt.Println(token)
-	if err != nil {
-		return 0
-	}
-	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
-	if err_v != nil {
-		return 0
-	}
-	return claims.RoleID
-}
-func (grpcSRV *GRPCServer)GetToken(ctx context.Context) string{
-	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
-	//fmt.Println(token)
-	if err != nil {
-		return ""
-	}
-	_, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
-	if err_v != nil {
-		return ""
-	}
-	return token
-}
 func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error) {
 	//fmt.Println(grpcSRV.servicename)
 	//ignore check token

@@ -9,6 +9,9 @@ import (
 	"github.com/goonma/sdk/db/mongo"
 	"github.com/goonma/sdk/utils"
 	e "github.com/goonma/sdk/base/error"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
+	"github.com/goonma/sdk/jwt"
+	"context"
 	"github.com/google/uuid"
 	"time"
 	"os"
@@ -25,6 +28,8 @@ type Micro struct{
 	Pub map[string]*ed.EventDriven
 	//micro client
 	Client map[string]*MicroClient
+	two_FA_Key  string
+	token_Key  string
 }
 /*
 args[0]: model list
@@ -56,6 +61,9 @@ func (micro *Micro) Initial(config *vault.Vault,args...interface{}){
 			}
 		}
 	}
+	//read 2FA Key for verify token
+	micro.two_FA_Key=micro.Config.ReadVAR("key/2fa/KEY")
+	micro.token_Key=micro.Config.ReadVAR("key/api/KEY")
 	//initial Event
 	if len(args)>1{
 		c,err:=utils.ItoBool(args[1])
@@ -164,6 +172,44 @@ func (micro *Micro)GetClient(client_name string) (*MicroClient,*e.Error){
 	}else{
 		return nil,e.New(fmt.Sprintf(" Micro Client not initial: %s",client_name),"Micro","GetClient")
 	}
+}
+
+func (micro *Micro)GetUserID(ctx context.Context) string{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return ""
+	}
+	claims, err_v := jwt.VerifyJWTToken(micro.token_Key,token)
+	if err_v != nil {
+		return ""
+	}
+	return claims.UserID 
+}
+
+func (micro *Micro)GetRoleID(ctx context.Context) int{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return 0
+	}
+	claims, err_v := jwt.VerifyJWTToken(micro.token_Key,token)
+	if err_v != nil {
+		return 0
+	}
+	return claims.RoleID
+}
+func (micro *Micro)GetToken(ctx context.Context) string{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return ""
+	}
+	_, err_v := jwt.VerifyJWTToken(micro.token_Key,token)
+	if err_v != nil {
+		return ""
+	}
+	return token
 }
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
 	if len(m)==0{
