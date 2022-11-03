@@ -29,6 +29,8 @@ type GRPCServer struct {
 	service *grpc.Server
 	two_FA_Key  string
 	token_Key  string
+	UserID string
+	RoleID int
 }
 
 func (grpcSRV *GRPCServer) Initial(service_name string){
@@ -142,10 +144,12 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if err != nil {
 		return nil, err
 	}
-	_, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
+	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
 	if err_v != nil {
 		return nil, err_v
 	}
+	grpcSRV.UserID=claims.UserID
+	grpcSRV.RoleID=claims.RoleID
 	//verify permision base on service name + method name
 	method_route,res:=grpc.Method(ctx)
 	if !res{

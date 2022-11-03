@@ -4,6 +4,7 @@ import(
 	"google.golang.org/grpc/metadata"
 	micropb "github.com/goonma/sdk/base/pb/micro"
 	"github.com/goonma/sdk/utils"
+	//"github.com/goonma/sdk/jwt"
 	e "github.com/goonma/sdk/base/error"
 	"github.com/goonma/sdk/utils/transform"
 	"google.golang.org/grpc"
@@ -153,8 +154,21 @@ func IsServiceName(endpoint string) bool{
 	return false
 }
 
-func CtxWithToken(ctx context.Context, token string) context.Context {
-	md := metadata.Pairs("authorization", fmt.Sprintf("%s %v", "bearer", token))
+func CtxWithToken(ctx context.Context, token string,args...string) context.Context {
+	/*user_id:=""
+	role_id:=0
+	if len(args)>0{//serect key
+		claims,err:=jwt.VerifyJWTToken(args[0],token)
+		if err==nil{
+			user_id=claims.UserID
+			role_id=claims.RoleID
+		}
+	}*/
+	md := metadata.Pairs(
+		"authorization", fmt.Sprintf("%s %v", "bearer", token),
+		//"user_id",user_id,
+		//"role_id",utils.IntToS(role_id),
+	)
 	nCtx := metautils.NiceMD(md).ToOutgoing(ctx)
 	return nCtx
 }
