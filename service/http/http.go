@@ -38,8 +38,6 @@ type HTTPServer struct {
 	key string
 	//ACL
 	Acl map[string]interface{}
-	UserID string
-	RoleID int
 }
 
 /*
@@ -197,8 +195,6 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			if err!=nil{
 				return nil,err 
 			}
-			sv.UserID=Claims_info.UserID
-			sv.RoleID=Claims_info.RoleID
 			if utils.MapI_contains(sv.Acl,utils.ItoString(Claims_info.RoleID)){
 				m_acl,err:=utils.ItoDictionaryBool(sv.Acl[utils.ItoString(Claims_info.RoleID)])
 				if err!=nil{

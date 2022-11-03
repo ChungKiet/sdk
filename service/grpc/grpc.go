@@ -3,6 +3,7 @@ package grpc
 import (
 	"net"
 	"os"
+	"google.golang.org/grpc/metadata"
 	"github.com/goonma/sdk/log"
 	"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/jwt"
@@ -29,8 +30,6 @@ type GRPCServer struct {
 	service *grpc.Server
 	two_FA_Key  string
 	token_Key  string
-	UserID string
-	RoleID int
 }
 
 func (grpcSRV *GRPCServer) Initial(service_name string){
@@ -130,11 +129,48 @@ func (grpcSRV *GRPCServer)GetService() *grpc.Server{
 	return grpcSRV.service
 }
 func (grpcSRV *GRPCServer)GetConfig() *vault.Vault{
+
 	return grpcSRV.config
 }
+func (grpcSRV *GRPCServer)GetUserID(ctx context.Context) string{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return ""
+	}
+	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
+	if err_v != nil {
+		return ""
+	}
+	return claims.UserID 
+}
 
+func (grpcSRV *GRPCServer)GetRoleID(ctx context.Context) int{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return 0
+	}
+	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
+	if err_v != nil {
+		return 0
+	}
+	return claims.RoleID
+}
+func (grpcSRV *GRPCServer)GetToken(ctx context.Context) string{
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return ""
+	}
+	_, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
+	if err_v != nil {
+		return ""
+	}
+	return token
+}
 func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error) {
-	fmt.Println(grpcSRV.servicename)
+	//fmt.Println(grpcSRV.servicename)
 	//ignore check token
 	if os.Getenv("IGNORE_TOKEN")=="true"{
 		return ctx,nil
@@ -148,8 +184,6 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if err_v != nil {
 		return nil, err_v
 	}
-	grpcSRV.UserID=claims.UserID
-	grpcSRV.RoleID=claims.RoleID
 	//verify permision base on service name + method name
 	method_route,res:=grpc.Method(ctx)
 	if !res{
@@ -170,5 +204,14 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	// WARNING: in production define your own type to avoid context collisions
 	//newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)
 	//return newCtx, nil*/
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok{
+		if len(md.Get("userid"))==0{
+			ctx = metadata.AppendToOutgoingContext(ctx, "userid",claims.UserID)
+		}
+		if len(md.Get("roleid"))==0{
+			ctx = metadata.AppendToOutgoingContext(ctx, "roleid",utils.IntToS(claims.RoleID))
+		}
+	}
 	return ctx,nil
 }
