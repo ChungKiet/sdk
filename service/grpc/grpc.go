@@ -10,9 +10,11 @@ import (
 	//"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/goonma/sdk/pubsub/kafka"
+	"github.com/goonma/sdk/cache/redis"
 	"fmt"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
+	//e "github.com/goonma/sdk/base/error"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"os/signal"
 	"syscall"
@@ -30,6 +32,10 @@ type GRPCServer struct {
 	service *grpc.Server
 	two_FA_Key  string
 	token_Key  string
+	//ACL db store
+	Redis redis.CacheHelper
+	//ACL cache
+	acl map[string]bool
 }
 
 func (grpcSRV *GRPCServer) Initial(service_name string){
@@ -83,6 +89,14 @@ func (grpcSRV *GRPCServer) Initial(service_name string){
 		grpc.MaxSendMsgSize(maxMsgSize),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(grpcSRV.authFunc)),//middleware verify authen
 	)
+	//ACL init
+	/*
+	var err_r *e.Error 
+	grpcSRV.Redis,err_r=redis.NewCacheHelper(grpcSRV.config)
+	if err_r!=nil{
+		log.ErrorF(err_r.Msg(),"gRPC","Initial")
+	}
+	*/
 }
 /*
 Start gRPC server with IP:Port from Initial step
@@ -135,10 +149,45 @@ func (grpcSRV *GRPCServer)GetConfig() *vault.Vault{
 
 func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error) {
 	//fmt.Println(grpcSRV.servicename)
+
 	//ignore check token
 	if os.Getenv("IGNORE_TOKEN")=="true"{
 		return ctx,nil
 	}
+	//
+	//verify permision base on service name + method name
+	method_route,res:=grpc.Method(ctx)
+
+	fmt.Println("gRPC Route: ",method_route)
+	
+	if !res{
+		return nil,errors.New("_ACL_ACCESS_DENY_")
+	}
+	if method_route==""{
+		return nil,errors.New("_ACL_METHOD_EMPTY_")
+	}
+	/*
+	arr:=utils.Explode(method_route,"/")
+	if len(arr)!=2{
+		return nil,errors.New("_ACL_METHOD_INVALID_")
+	}
+	method:=arr[2]
+	//whitelist ACL: servicename_method
+	acl_key_all:=grpcSRV.servicename+"_"+method
+	if utils.MapB_contains(grpcSRV.acl,acl_key_all){
+		return ctx,nil
+	}else{
+		check, err := grpcSRV.Redis.Exists(acl_key_all)
+		if err!=nil{
+			return ctx,errors.New("_REDIS_ERROR_CANNOT_VERIFY_ACL_")
+		}
+		if check{
+			grpcSRV.acl[acl_key_all]=true//store cache
+			return ctx,nil
+		}
+	}
+	*/
+	//
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	//fmt.Println(token)
 	if err != nil {
@@ -148,22 +197,23 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if err_v != nil {
 		return nil, err_v
 	}
-	//verify permision base on service name + method name
-	method_route,res:=grpc.Method(ctx)
-	if !res{
-		return nil,errors.New("Access Deny")
-	}
-	if method_route==""{
-		return nil,errors.New("Method is empty")
-	}
-	arr:=utils.Explode(method_route,"/")
-	if len(arr)!=2{
-		return nil,errors.New("Method invalid")
-	}
-	//method:=arr[2]
+	
 	//fmt.Println(method)
-	//
-
+	//check acl from cache
+	/*
+	acl_key:=grpcSRV.servicename+"_"+method+"_"+utils.ItoString(claims.RoleID)
+	if !utils.MapB_contains(grpcSRV.acl,acl_key){//not exist, check from redis
+		check, err := grpcSRV.Redis.Exists(acl_key)
+		if err!=nil{
+			return ctx,errors.New("_ACL_REDIS_ERROR_CANNOT_VERIFY_")
+		}
+		if !check{
+			return ctx,errors.New("_ACL_ACCESS_DENY_")
+		}else{
+			grpcSRV.acl[acl_key]=true//store cache
+		}
+	}
+	*/
 	//grpc_ctxtags.Extract(ctx).Set("auth.sub", userClaimFromToken(tokenInfo))
 	// WARNING: in production define your own type to avoid context collisions
 	//newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)
@@ -179,3 +229,4 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	}
 	return ctx,nil
 }
+

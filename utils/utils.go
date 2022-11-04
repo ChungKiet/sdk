@@ -37,6 +37,16 @@ func Map_contains(m map[string]string, item string) bool {
 	}
 	return false
 }
+//check map bool contains key
+func MapB_contains(m map[string]bool, item string) bool {
+	if len(m)==0{
+		return false
+	}
+	if _, ok := m[item]; ok {
+		return true
+	}
+	return false
+}
 //check map interface contains key
 func MapI_contains(m map[string]interface{}, item string) bool {
 	if len(m)==0{

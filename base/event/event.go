@@ -9,7 +9,7 @@ type ConsumeFn = func(message *message.Message) error
 type WriteLogConsumeFn = func(e Event) error
 type RePushFn =func(event Event) *e.Error
 type RetryDeleteRedisPushFn =func(event Event) error
-
+type CheckACLFn=func(key string) bool
 type Event struct {
 	EventID     uuid.UUID
 	EventName   string//dev set
