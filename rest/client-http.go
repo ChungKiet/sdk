@@ -14,8 +14,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	mgo "github.com/globalsign/mgo"
 )
 
 // RestClient :
@@ -94,10 +92,7 @@ var HTTPMethods = &HTTPMethodEnum{
 
 // NewHTTPClient
 func NewHTTPClient(config *APIClientConfiguration) APIClient {
-	return NewRESTClient(config.Address, config.LoggingCol,
-		config.Timeout,
-		config.MaxRetry,
-		config.WaitToRetry)
+	return NewRESTClient(config.Address, config.LoggingCol, config.Timeout, config.MaxRetry, config.WaitToRetry)
 }
 
 // NewRESTClient : New instance of restClient
@@ -161,8 +156,6 @@ func (c *RestResult) ToAPIResponse() (*APIResponse, error) {
 	return &APIResponse{Status: APIStatus.Ok, Message: rs.Message, Data: rs.Data}, nil
 }
 
-
-
 // SetTimeout :
 func (c *RestClient) SetTimeout(timeout time.Duration) {
 	c.timeOut = timeout
@@ -177,6 +170,16 @@ func (c *RestClient) AcceptHTTPError(accept bool) {
 // SetWaitTime :
 func (c *RestClient) SetWaitTime(waitTime time.Duration) {
 	c.waitTime = waitTime
+}
+
+// SetDebug write log debug
+func (c *RestClient) SetDebug(val bool) {
+	c.debug = val
+}
+
+// SetLoggerName :
+func (c *RestClient) SetLoggerName(loggerName string) {
+	c.logName = loggerName
 }
 
 // SetMaxRetryTime :
@@ -241,7 +244,6 @@ func (c *RestClient) MakeHTTPRequest(method HTTPMethod, headers map[string]strin
 	return c.MakeHTTPRequestWithKey(method, headers, params, body, path, nil)
 }
 
-
 // MakeHTTPRequestWithKey :
 func (c *RestClient) MakeHTTPRequestWithKey(method HTTPMethod, headers map[string]string, params map[string]string, body interface{}, path string, keys *[]string) (*RestResult, error) {
 
@@ -263,7 +265,6 @@ func (c *RestClient) MakeHTTPRequestWithKey(method HTTPMethod, headers map[strin
 		Caller:      userAgent,
 	}
 
-
 	if c.debug {
 		fmt.Println(" +++ Try to init request ...")
 	}
@@ -281,12 +282,10 @@ func (c *RestClient) MakeHTTPRequestWithKey(method HTTPMethod, headers map[strin
 		}
 
 		if reqErr != nil {
-			msg := reqErr.Error()
 			return nil, reqErr
 		}
 		// start time
 		startCallTime := time.Now().UnixNano() / 1e6
-		
 
 		// add call result
 		callRs := &CallResult{}
@@ -453,8 +452,8 @@ func (c *RestClient) MakeRequest(req APIRequest) *APIResponse {
 
 	if err != nil {
 		return &APIResponse{
-			Status:  APIStatus.Error,
-			Message: "HTTP Endpoint Error: " + err.Error(),
+			Status:    APIStatus.Error,
+			Message:   "HTTP Endpoint Error: " + err.Error(),
 			ErrorCode: "ENDPOINT_ERROR",
 		}
 	}
@@ -482,11 +481,65 @@ func (c *RestClient) MakeRequest(req APIRequest) *APIResponse {
 
 	if err != nil {
 		return &APIResponse{
-			Status:  APIStatus.Error,
-			Message: "Response Data Error: " + err.Error(),
+			Status:    APIStatus.Error,
+			Message:   "Response Data Error: " + err.Error(),
 			ErrorCode: "RESPONSE_DATA_ERROR",
-			Data:    []string{err.Error(), result.Body},
+			Data:      []string{err.Error(), result.Body},
 		}
 	}
 	return resp
+}
+
+type APIResponse struct {
+	Status    string            `json:"status"`
+	Data      interface{}       `json:"data,omitempty"`
+	Message   string            `json:"message"`
+	ErrorCode string            `json:"errorCode,omitempty"`
+	Total     int64             `json:"total,omitempty"`
+	Headers   map[string]string `json:"headers,omitempty"`
+}
+
+// StatusEnum ...
+type StatusEnum struct {
+	Ok           string
+	Error        string
+	Invalid      string
+	NotFound     string
+	Forbidden    string
+	Existed      string
+	Unauthorized string
+}
+
+// APIStatus Published enum
+var APIStatus = &StatusEnum{
+	Ok:           "OK",
+	Error:        "ERROR",
+	Invalid:      "INVALID",
+	NotFound:     "NOT_FOUND",
+	Forbidden:    "FORBIDDEN",
+	Existed:      "EXISTED",
+	Unauthorized: "UNAUTHORIZED",
+}
+
+// MethodValue ...
+type MethodValue struct {
+	Value string
+}
+
+// MethodEnum ...
+type MethodEnum struct {
+	GET     *MethodValue
+	POST    *MethodValue
+	PUT     *MethodValue
+	DELETE  *MethodValue
+	OPTIONS *MethodValue
+}
+
+// APIMethod Published enum
+var APIMethod = MethodEnum{
+	GET:     &MethodValue{Value: "GET"},
+	POST:    &MethodValue{Value: "POST"},
+	PUT:     &MethodValue{Value: "PUT"},
+	DELETE:  &MethodValue{Value: "DELETE"},
+	OPTIONS: &MethodValue{Value: "OPTIONS"},
 }
