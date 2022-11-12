@@ -205,7 +205,7 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 
 	// apply transaction
 	results, txnErr := session.WithTransaction(context.TODO(), handler, txnOpts)
-	if txnErr == nil {
+	if txnErr != nil {
 		return &status.DBResponse{
 			Status:    status.DBStatus.Error,
 			Message:   "Failed to commit transaction with error: " + txnErr.Error(),
