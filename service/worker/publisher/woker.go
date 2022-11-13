@@ -24,7 +24,7 @@ type Worker struct {
 	//key-value store management
 	config *vault.Vault
 	//event driven
-	Ed ed.EventDriven
+	Pub map[string]*ed.EventDriven
 	//db map[string]dbconnection
 	Mgo  db.MongoDB
 	//log publisher
@@ -58,9 +58,29 @@ func (w *Worker) Initial(worker_name string,args...interface{}) {
 		}
 	}
 	//initial Event published
-	err_p:=w.Ed.InitialPublisher(w.config,fmt.Sprintf("%s/%s/%s","worker",worker_name,"pub/kafka"),worker_name,"Event Bus")
+	check,err_p:=w.config.CheckPathExist("worker/"+worker_name+"/pub/kafka")
 	if err_p!=nil{
-		log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+		log.ErrorF(err_p.Msg(),worker_name,"Initial")
+	}
+	w.Pub=make(map[string]*ed.EventDriven)
+	if check{//custom publisher, list event
+		event_list:=w.config.ListItemByPath("worker/"+worker_name+"/pub/kafka")
+		for _,event:=range event_list{
+			if !Map_PublisherContains(w.Pub,event) && event!="general"{
+				w.Pub[event]=&ed.EventDriven{}
+				//micro.Pub[event].SetNoUpdatePublishTime(true)
+				err:=w.Pub[event].InitialPublisherWithGlobal(w.config,fmt.Sprintf("worker/%s/%s/%s",worker_name,"pub/kafka",event),worker_name,event)
+				if err!=nil{
+					log.ErrorF(err.Msg(),worker_name,"Initial")
+				}
+			}
+		}
+	}else{//use main bus
+		w.Pub["main"]=&ed.EventDriven{}
+		err_p:=w.Pub["main"].InitialPublisher(w.config,"eventbus/kafka",worker_name)
+		if err_p!=nil{
+			log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+		}
 	}
 	//initial DB args[0] => mongodb
 	if len(args)>1{
@@ -141,3 +161,14 @@ func (w *Worker)GetConfig() *vault.Vault{
 func (w *Worker)Clean(){
 	w.Mgo.Clean()
 }
+
+func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
+	if len(m)==0{
+		return false
+	}
+	if _, ok := m[item]; ok {
+		return true
+	}
+	return false
+}
+	

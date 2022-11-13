@@ -78,14 +78,14 @@ func (micro *Micro) Initial(config *vault.Vault,args...interface{}){
 			if err_p!=nil{
 				log.ErrorF(err_p.Msg(),micro.Config.GetServiceName(),"Initial")
 			}
+			micro.Pub=make(map[string]*ed.EventDriven)
 			if check{//custom publisher, list event
 				event_list:=micro.Config.ListItemByPath(service_path+"/pub/kafka")
-				micro.Pub=make(map[string]*ed.EventDriven)
 				for _,event:=range event_list{
 					if !Map_PublisherContains(micro.Pub,event) && event!="general"{
 						micro.Pub[event]=&ed.EventDriven{}
 						//micro.Pub[event].SetNoUpdatePublishTime(true)
-						err:=micro.Pub[event].InitialPublisherWithGlobal(micro.Config,fmt.Sprintf("%s/%s/%s",service_path,"/pub/kafka",event),micro.Config.GetServiceName(),event)
+						err:=micro.Pub[event].InitialPublisherWithGlobal(micro.Config,fmt.Sprintf("%s/%s/%s",service_path,"pub/kafka",event),micro.Config.GetServiceName(),event)
 						if err!=nil{
 							log.ErrorF(err.Msg(),micro.Config.GetServiceName(),"Initial")
 						}

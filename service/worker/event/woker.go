@@ -25,8 +25,10 @@ type Worker struct {
 	worker_name string
 	//key-value store management
 	config *vault.Vault
-	//event driven
-	Ed ed.EventDriven
+	//event driven subscriber, only 1
+	Sub ed.EventDriven
+	//event driven for multi publisher
+	Pub map[string]*ed.EventDriven
 	//db map[string]dbconnection
 	Mgo  db.MongoDB
 	//log publisher
@@ -77,7 +79,7 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 		//
 		w.InitRetryDeleteFailUIDRedisPublisher()
 		//invoke publisher redis to subscriber
-		w.Ed.SetPushlisherForRetryDeleteRedis(w.PushRetryDeleteRedis)
+		w.Sub.SetPushlisherForRetryDeleteRedis(w.PushRetryDeleteRedis)
 
 	}else{
 		fmt.Println("===Disable PushRetryDeleteRedis===")
@@ -86,29 +88,29 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 	if !w.uninit_check_uid{
 		// this set for Publisher check Uid in DB(Redis )before push to main_bus need to check Uid
 		fmt.Println("===Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Ed.SetCheckDuplicate(true)
+		w.Sub.SetCheckDuplicate(true)
 		fmt.Println("===Init delete Uid in Db(Redis) after consumed item ===")
 		//this set for Subscriber delete Uid in DB(Redis) after consumed
-		w.Ed.SetNoValidUID(false)
+		w.Sub.SetNoValidUID(false)
 	}else{
 		fmt.Println("===Disable Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Ed.SetCheckDuplicate(false)
+		w.Sub.SetCheckDuplicate(false)
 		fmt.Println("===Disable Init delete Uid in Db(Redis) after consumed item ===")
-		w.Ed.SetNoValidUID(true)
+		w.Sub.SetNoValidUID(true)
 	}
 	//
 	//initial Event subscriber
 	var err_s *e.Error
 	//default alway init subscriber_log for push item consumer process success to log_item_sucess, log item fail push from router base on TTL
 	if w.uninit_subscriber_log{// not default case
-		err_s=w.Ed.InitialSubscriber(
+		err_s=w.Sub.InitialSubscriber(
 			w.config,fmt.Sprintf("%s/%s/%s","worker",worker_name,"sub/kafka"),
 			worker_name,
 			callbackfn,
 			nil)
 		fmt.Println("===Disable Log for item success===")	
 	}else{//default case
-		err_s=w.Ed.InitialSubscriber(
+		err_s=w.Sub.InitialSubscriber(
 			w.config,fmt.Sprintf("%s/%s/%s","worker",worker_name,"sub/kafka"),
 			worker_name,
 			callbackfn,
@@ -120,13 +122,35 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 	}
 	//initial Event publisher (gRPC micro service publisher)
 	fmt.Println("===Init publisher for kafka main_bus===")	
-	err_p:=w.Ed.InitialPublisher(w.config,"eventbus/kafka",worker_name,"Event Bus")
+	//initial Event published
+	check,err_p:=w.config.CheckPathExist("worker/"+worker_name+"/pub/kafka")
 	if err_p!=nil{
-		log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+		log.ErrorF(err_p.Msg(),worker_name,"Initial")
+	}
+	fmt.Println("Check:",check)
+	w.Pub=make(map[string]*ed.EventDriven)
+	if check{//custom publisher, list event
+		event_list:=w.config.ListItemByPath("worker/"+worker_name+"/pub/kafka")
+		for _,event:=range event_list{
+			if !Map_PublisherContains(w.Pub,event) && event!="general"{
+				w.Pub[event]=&ed.EventDriven{}
+				//micro.Pub[event].SetNoUpdatePublishTime(true)
+				err:=w.Pub[event].InitialPublisherWithGlobal(w.config,fmt.Sprintf("worker/%s/%s/%s",worker_name,"pub/kafka",event),worker_name,event)
+				if err!=nil{
+					log.ErrorF(err.Msg(),worker_name,"Initial")
+				}
+			}
+		}
+	}else{//use main bus
+		w.Pub["main"]=&ed.EventDriven{}
+		err_p:=w.Pub["main"].InitialPublisher(w.config,"eventbus/kafka",worker_name)
+		if err_p!=nil{
+			log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
+		}
 	}
 	//for Repush Event to main_bus when Consumer Process fail
 	fmt.Println("===Init publisher(of consumer) for repush item fail to mainbus===")	
-	w.Ed.SetPublisherForSubscriber()
+	w.Sub.SetPublisherForSubscriber()
 	//init consumed Log
 	//initial DB args[0] => mongodb
 	if len(args)>1{
@@ -196,7 +220,7 @@ func (w *Worker) InitRetryDeleteFailUIDRedisPublisher() {
 
 //start consumers
 func (w *Worker) Start() {
-	err:=w.Ed.Subscribe()
+	err:=w.Sub.Subscribe()
 	if err!=nil{
 		log.ErrorF(err.Msg(),err.Group(),err.Key())
 	}
@@ -267,7 +291,17 @@ func (w *Worker)GetConfig() *vault.Vault{
 	return w.config
 }
 func (w *Worker)Clean(){
-	w.Ed.Clean()
+	w.Sub.Clean()
 	w.Mgo.Clean()
 }
 
+func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
+	if len(m)==0{
+		return false
+	}
+	if _, ok := m[item]; ok {
+		return true
+	}
+	return false
+}
+	
