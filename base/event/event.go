@@ -28,7 +28,6 @@ type Event struct {
 	IgnoreUid bool
 	Transaction_id uuid.UUID
 	Transaction_start_time int64 //timestamp
-
 }
 type Queue []string
 

@@ -82,6 +82,21 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 	}else{
 		fmt.Println("===Disable PushRetryDeleteRedis===")
 	}
+	//default alway init check Uid in DB(redis)
+	if !w.uninit_check_uid{
+		// this set for Publisher check Uid in DB(Redis )before push to main_bus need to check Uid
+		fmt.Println("===Init check Uid in Db(Redis) before Push item to topic ===")
+		w.Ed.SetCheckDuplicate(true)
+		fmt.Println("===Init delete Uid in Db(Redis) after consumed item ===")
+		//this set for Subscriber delete Uid in DB(Redis) after consumed
+		w.Ed.SetNoValidUID(false)
+	}else{
+		fmt.Println("===Disable Init check Uid in Db(Redis) before Push item to topic ===")
+		w.Ed.SetCheckDuplicate(false)
+		fmt.Println("===Disable Init delete Uid in Db(Redis) after consumed item ===")
+		w.Ed.SetNoValidUID(true)
+	}
+	//
 	//initial Event subscriber
 	var err_s *e.Error
 	//default alway init subscriber_log for push item consumer process success to log_item_sucess, log item fail push from router base on TTL
@@ -141,21 +156,7 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 	if !w.uninit_subscriber_log{
 		w.InitConsumedLog()
 	}
-	//default alway init check Uid in DB(redis)
-	if !w.uninit_check_uid{
-		// this set for Publisher check Uid in DB(Redis )before push to main_bus need to check Uid
-		fmt.Println("===Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Ed.SetCheckDuplicate(true)
-		fmt.Println("===Init delete Uid in Db(Redis) after consumed item ===")
-		//this set for Subscriber delete Uid in DB(Redis) after consumed
-		w.Ed.SetNoValidUID(false)
-	}else{
-		fmt.Println("===Disable Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Ed.SetCheckDuplicate(false)
-		fmt.Println("===Disable Init delete Uid in Db(Redis) after consumed item ===")
-		w.Ed.SetNoValidUID(true)
-	}
-	//
+	
 	
 }
 func (w *Worker) InitConsumedLog() {
