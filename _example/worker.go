@@ -19,10 +19,12 @@ func main(){
 	//
 	var w Worker
 	//default worker don't initial publihser, if you want initial, set by bellow command
-	w.InitSubscriberLog(true)
-	w.InitPublisher(true)
+	w.SetNoCheckDuplicate(true)
+	w.SetUnRetryDeleteUid(true)
+	w.SetNoInitSubscriberLog(true)
+	w.SetNoInitSubscriberLog(true)
 	//no database
-	w.Initial("woker1",w.wkProcess,RemoteServices())//paste function process worker here
+	w.Initial("worker-demo",w.wkProcess,nil)//paste function process worker here
 	//with database
 	//w.Initial("woker1",w.wkProcess,RemoteServices(),loadModel())//paste function process worker here
 	//
