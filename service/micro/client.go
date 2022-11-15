@@ -135,6 +135,8 @@ func NewMicroClientWithoutConnection(grpc_server_address string) (*MicroClient,*
 func GetEnpoint(service_name string) string{
 	if IsServiceName(service_name){
 		service_name=strings.ReplaceAll(service_name,"micro.","")
+		//hot fix
+		service_name=strings.ReplaceAll(service_name,"goonma","grpc")
 		arr := utils.Explode(service_name, ".")
 		arr=utils.ReverseStringArray(arr)
 		prefix := arr[0 : len(arr)-4]
@@ -148,7 +150,7 @@ func IsServiceName(endpoint string) bool{
 	if len(arr)<5{
 		return false
 	}
-	if arr[0]=="micro" && arr[1]=="local" && arr[2]=="cluster" && arr[3]=="svc" && arr[4]=="goonma"{
+	if arr[0]=="micro" && arr[1]=="local" && arr[2]=="cluster" && arr[3]=="svc"{
 		return true
 	}
 	return false
