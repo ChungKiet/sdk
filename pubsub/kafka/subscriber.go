@@ -176,6 +176,7 @@ func  (sub *Subscriber)Consume() (*e.Error){
 				Unmarshaler:           kafka.DefaultMarshaler{},
 				OverwriteSaramaConfig: conf,
 				ConsumerGroup:        consumer_group,
+				ReconnectRetrySleep: 10 * time.Second,
 			},
 			//watermill.NewStdLogger(false, false),
 			nil,

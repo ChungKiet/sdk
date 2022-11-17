@@ -45,6 +45,7 @@ args[0]: model list
 args[1]: not exist || exist && true then initial publisher, else don't implement publisher 
 args[2]: micro client list map[string]string (name - endpoint address)
 args[3]: route white list not check JWT
+args[4]: ACL 
 */
 
 func (sv *HTTPServer) Initial(service_name string,args...interface{}){
