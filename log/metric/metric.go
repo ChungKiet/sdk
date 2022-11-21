@@ -13,6 +13,7 @@ import (
 	dlog "log"
 	"fmt"
 	"encoding/json"
+	"time"
 )
 
 
@@ -119,7 +120,8 @@ func SetDestKafka(config_map map[string]string){
 	defer log.logCacheEngineer.Flush(&wg)
 	dlog.Println("Logger connected to Kafka success")
 }
-func Push(metric_name string,t int) {
+func Push(metric_name string,t1,t2 time.Time) {
+	t:=t2.Sub(t1).Seconds()
 	if log.dest==2{
 		log.logCacheEngineer.Info(
 			"",
@@ -127,7 +129,7 @@ func Push(metric_name string,t int) {
 			zap.String("host", log.host),
 			zap.String("service", log.service),
 			zap.String("metric", metric_name),
-			zap.Int("t", t),
+			zap.Float64("t", t),
 			zap.String("env", log.env),
 		)
 		defer log.logCacheEngineer.Flush(&wg)
