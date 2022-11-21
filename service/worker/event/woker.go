@@ -4,6 +4,7 @@ import (
 	"github.com/goonma/sdk/config/vault"
 	ed "github.com/goonma/sdk/eventdriven"
 	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/log/metric"
 	ev "github.com/goonma/sdk/base/event"
 	"github.com/goonma/sdk/base/event"
 	e "github.com/goonma/sdk/base/error"
@@ -58,6 +59,7 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 		}
 	}
 	log.Initial(worker_name)
+	metric.Initial(worker_name)
 	w.worker_name=worker_name
 	//initial Server configuration
 	var config vault.Vault
@@ -70,6 +72,14 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 		if log_dest=="kafka"{
 			config_map:=kafka.GetConfig(w.config,"logger/kafka")
 			log.SetDestKafka(config_map)
+		}
+	}
+	//ReInitial Destination for Metric
+	if metric.LogMode()!=2{// not in local, locall just output log to std
+		log_dest:=w.config.ReadVAR("logger/general/LOG_DEST")
+		if log_dest=="kafka"{
+			config_map:=kafka.GetConfig(w.config,"metric/kafka")
+			metric.SetDestKafka(config_map)
 		}
 	}
 	//

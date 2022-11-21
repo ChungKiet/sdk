@@ -5,6 +5,7 @@ import (
 	"os"
 	"google.golang.org/grpc/metadata"
 	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/log/metric"
 	"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/jwt"
 	//"github.com/goonma/sdk/utils"
@@ -49,6 +50,7 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 		}
 	}
 	log.Initial(service_name)
+	metric.Initial(service_name)
 	//initial Server configuration
 	var config vault.Vault
 	grpcSRV.config= &config
@@ -77,6 +79,14 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 		if log_dest=="kafka"{
 			config_map:=kafka.GetConfig(grpcSRV.config,"logger/kafka")
 			log.SetDestKafka(config_map)
+		}
+	}
+	//ReInitial Destination for Metric
+	if metric.LogMode()!=2{// not in local, locall just output log to std
+		log_dest:=grpcSRV.config.ReadVAR("logger/general/LOG_DEST")
+		if log_dest=="kafka"{
+			config_map:=kafka.GetConfig(grpcSRV.config,"metric/kafka")
+			metric.SetDestKafka(config_map)
 		}
 	}
 	//new grpc server
