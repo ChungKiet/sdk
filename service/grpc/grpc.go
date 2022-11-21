@@ -36,9 +36,10 @@ type GRPCServer struct {
 	Redis redis.CacheHelper
 	//ACL cache
 	acl map[string]bool
+	whitelist []string
 }
 
-func (grpcSRV *GRPCServer) Initial(service_name string){
+func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 	//get ENV
 	err := godotenv.Load(os.ExpandEnv("/config/.env"))
 	if err!=nil{
@@ -97,6 +98,14 @@ func (grpcSRV *GRPCServer) Initial(service_name string){
 		log.ErrorF(err_r.Msg(),"gRPC","Initial")
 	}
 	*/
+	//whitelist init
+	if len(args)>0{
+		arr,err:=utils.ItoSliceString(args[0])
+		if err!=nil{
+			log.ErrorF(err.Error(),"InitGrpc","",args)
+		}
+		grpcSRV.whitelist=arr
+	}
 }
 /*
 Start gRPC server with IP:Port from Initial step
@@ -165,6 +174,10 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	}
 	if method_route==""{
 		return nil,errors.New("_ACL_METHOD_EMPTY_")
+	}
+	//ignore check token if method in whitelist
+	if utils.Contains(grpcSRV.whitelist,method_route){
+		return ctx,nil
 	}
 	/*
 	arr:=utils.Explode(method_route,"/")
