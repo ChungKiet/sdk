@@ -162,3 +162,49 @@ func (pub *Publisher) InitialWithGlobal(vault *vault.Vault,config_path string,ar
 	return nil
 }
 
+
+//
+func (pub *Publisher) InitialManual(config_map map[string]string, publisher_name string) *e.Error{
+	log.Info("Initialing Kafka publisher...","KAFKA")
+	//
+	conf:=NewProducerConfig(config_map)
+	brokers_str:=config_map["BROKERS"]
+	topic:=config_map["TOPIC"]
+	if brokers_str==""{
+		//log.ErrorF("Event Bus Brokers not found","KAFKAL","KAFKA_PUBLISHER_BROKER")
+		return e.New("Event Bus Brokers not found","KAFKA","PUBLISHER")
+	}
+	if topic==""{
+		//log.ErrorF("Event Bus Topic not found","KAFKA","KAFKA_PUBLISHER_TOPIC")
+		return e.New("Event Bus Topic not found","KAFKA","PUBLISHER")
+	}
+	pub.topic=topic
+	var err error
+
+	brokers:=utils.Explode(brokers_str,",")
+	pub.publisher, err = kafka.NewPublisher(
+	kafka.PublisherConfig{
+			Brokers:   brokers,
+			Marshaler: kafka.DefaultMarshaler{},
+			OverwriteSaramaConfig: conf,
+		},
+		//watermill.NewStdLogger(false, false),
+		nil,
+	)
+	//not production
+	if err!=nil{
+		if log.LogMode()!=0{
+			data_cfg_str,err_c:=utils.MapToJSONString(config_map)
+			if err_c!=nil{
+				//log.ErrorF(err.Error(),"KAFKA_PUBLISHER_INITIAL")
+				return e.New(err_c.Error(),"KAFKA","PUBLISHER")
+			}
+			//return errors.New(fmt.Sprintf("%s: %s",err.Error(),data_cfg_str))
+			return e.New(fmt.Sprintf("%s: %s",err.Error(),data_cfg_str),"KAFKA","PUBLISHER")
+		}else{
+			return e.New(err.Error(),"KAFKA","PUBLISHER")
+		}
+	}
+	log.Info(fmt.Sprintf("%s %s %s %s: %s","Kafka publisher ",publisher_name," brokers: ",brokers_str," connected"),"KAFKA","PUBLISHER")
+	return nil
+}

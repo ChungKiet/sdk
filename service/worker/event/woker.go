@@ -59,7 +59,6 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 		}
 	}
 	log.Initial(worker_name)
-	metric.Initial(worker_name)
 	w.worker_name=worker_name
 	//initial Server configuration
 	var config vault.Vault
@@ -74,14 +73,12 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 			log.SetDestKafka(config_map)
 		}
 	}
-	//ReInitial Destination for Metric
-	if metric.LogMode()!=2{// not in local, locall just output log to std
-		log_dest:=w.config.ReadVAR("logger/general/LOG_DEST")
-		if log_dest=="kafka"{
-			config_map:=kafka.GetConfig(w.config,"metric/kafka")
-			metric.SetDestKafka(config_map)
-		}
-	}
+	//init metric
+	config_map:=kafka.GetConfig(w.config,"metric/kafka")
+	err_m:=metric.Initial(worker_name,config_map)
+	if err_m!=nil{
+		log.Warn(err_m.Error(),"InitMetrics")
+	}	
 	//
 	//default alway retry delete uid in DB(redis), this will push item to kafka topic for other worker retry
 	if !w.uninit_retry_delete_uid{

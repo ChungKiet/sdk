@@ -50,7 +50,6 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 		}
 	}
 	log.Initial(service_name)
-	metric.Initial(service_name)
 	//initial Server configuration
 	var config vault.Vault
 	grpcSRV.config= &config
@@ -81,13 +80,11 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 			log.SetDestKafka(config_map)
 		}
 	}
-	//ReInitial Destination for Metric
-	if metric.LogMode()!=2{// not in local, locall just output log to std
-		log_dest:=grpcSRV.config.ReadVAR("logger/general/LOG_DEST")
-		if log_dest=="kafka"{
-			config_map:=kafka.GetConfig(grpcSRV.config,"metric/kafka")
-			metric.SetDestKafka(config_map)
-		}
+	//init metric
+	config_map:=kafka.GetConfig(grpcSRV.config,"metric/kafka")
+	err_m:=metric.Initial(service_name,config_map)
+	if err_m!=nil{
+		log.Warn(err_m.Error(),"InitMetrics")
 	}
 	//new grpc server
 	maxMsgSize := 1024 * 1024 * 1024 //1GB

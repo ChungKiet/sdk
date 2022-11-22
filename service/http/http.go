@@ -36,6 +36,7 @@ type HTTPServer struct {
 	Client map[string]*micro.MicroClient
 	//serect key for JWT 
 	key string
+	path_key string
 	//ACL
 	Acl map[string]interface{}
 }
@@ -63,7 +64,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	sv.config= &config
 	sv.config.Initial(service_name)
 	//get config from key-value store
-	http_port_env:=sv.config.ReadVAR("http/HTTP_PORT")
+	http_port_env:=sv.config.ReadVAR("api/general/HTTP_PORT")
 	if http_port_env!=""{
 		sv.port=http_port_env
 	}
@@ -241,6 +242,14 @@ func (sv *HTTPServer) Start(){
 	if err := sv.Srv.Shutdown(ctx); err != nil {
 		sv.Srv.Logger.Fatal(err)
 	}
+}
+func (sv *HTTPServer)SetPathKey(path string) error {
+	key:=sv.config.ReadVAR(path)
+	if key==""{
+		return errors.New("_PATH_KEY_NOT_EXISTS_")
+	}
+	sv.key=path
+	return nil
 }
 func (sv *HTTPServer)Restricted(c echo.Context) error {
 	//user := c.Get("user").(*jwt.Token)
