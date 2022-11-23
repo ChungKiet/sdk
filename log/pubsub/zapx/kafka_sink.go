@@ -57,7 +57,6 @@ func InitKafkaSink(u *url.URL) (zap.Sink, error) {
 	config.Producer.Return.Successes = true
 	config.Metadata.Full = true
 	//conf.Version = sarama.V0_10_0_0
-	//conf.ClientID = "Treehouse-SDK-1.0.1-Publisher-log"
 	if username!="" && password!=""{
 		config.Net.SASL.Enable = true
 		config.Net.SASL.User = username

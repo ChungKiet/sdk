@@ -62,7 +62,7 @@ func RemoteServices() map[string]string {
 	//declare remote services for stg && prd
 	if os.Getenv("ENV") == "stg" || os.Getenv("ENV") == "prd"  || os.Getenv("ENV") == "dev"{
 		//func
-		list["fn.queue0"] = "micro.local.cluster.svc.treehouse.fn.queue0"
+		list["fn.queue0"] = "micro.local.cluster.svc.goonma.demo"
 	} else { //declare remote services for local
 		//func
 		list["fn.queue0"] = "127.0.0.1:30001"
