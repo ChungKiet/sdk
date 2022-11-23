@@ -32,6 +32,7 @@ func main(){
 	var w HTTP
 	//
 	w.Initial("api",nil,false,nil,whitelist_routes,acl)
+	w.SetPathKey("path/")
 	//add route
 	w.Srv.GET("/hello", hello)
 	w.Srv.POST("/authenmethod", authenmethod)
