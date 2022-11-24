@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -20,7 +21,10 @@ func (w *Websocket) Consume(msg *message.Message) error {
 
 func (w *Websocket) WsHandle(c echo.Context) error {
 	user, ok := c.Get("user").(*jwt.CustomClaims)
-
+	fmt.Printf("user %+v\n", user)
+	websocket.Upgrader.CheckOrigin = func(r *http.Request) bool {
+		return true
+	}
 	conn, err := websocket.Upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
@@ -55,9 +59,11 @@ func (w *Websocket) WsHandle(c echo.Context) error {
 	go client.WritePump()
 
 	ticker := time.NewTicker(5 * time.Second)
-	select {
-	case <-ticker.C:
-		client.Send <- []byte("Hello")
+	for {
+		select {
+		case <-ticker.C:
+			client.Send <- []byte("Hello")
+		}
 	}
 	return nil
 }

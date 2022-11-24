@@ -99,7 +99,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		Claims:        &j.CustomClaims{},
 		SigningKey:    []byte(w.key),
 		SigningMethod: jwt.SigningMethodHS256.Name,
-		TokenLookup:   "header:" + echo.HeaderAuthorization + ", query:token",
+		TokenLookup:   "query:token",
 		AuthScheme:    "Bearer",
 		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
 			if os.Getenv("IGNORE_TOKEN") == "true" {
@@ -210,7 +210,7 @@ func (w *Websocket) Start() {
 		os.Exit(0)
 	}
 	fmt.Printf("HTTP Server start at: %s:%s\n", w.host, w.port)
-
+	go w.Hub.run()
 	// Start server
 	go func() {
 		if err := w.Srv.Start(":" + w.port); err != nil && err != http.ErrServerClosed {
