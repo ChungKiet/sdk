@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/goonma/sdk/base/event"
 	"github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/service/websocket"
 	"github.com/labstack/echo/v4"
@@ -16,12 +18,16 @@ type Websocket struct {
 }
 
 func (w *Websocket) Consume(msg *message.Message) error {
+	var eventData event.Event
+	if err := json.Unmarshal(msg.Payload, &eventData); err != nil {
+		return err
+	}
+	fmt.Printf("%+v\n", eventData.EventData)
 	return nil
 }
 
 func (w *Websocket) WsHandle(c echo.Context) error {
 	user, ok := c.Get("user").(*jwt.CustomClaims)
-	fmt.Printf("user %+v\n", user)
 	websocket.Upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}

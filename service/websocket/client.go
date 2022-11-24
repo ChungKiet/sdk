@@ -35,6 +35,8 @@ var Upgrader = websocket.Upgrader{
 type Client struct {
 	Hub *Hub
 
+	Rooms []string
+
 	// The websocket connection.
 	Conn *websocket.Conn
 
@@ -50,7 +52,12 @@ type Client struct {
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.Unregister <- c
-		//c.Hub.LeaveRoom <- ClientRoom{R}
+		for _, room := range c.Rooms {
+			c.Hub.LeaveRoom <- ClientRoom{
+				Client: c,
+				Room:   room,
+			}
+		}
 		c.Conn.Close()
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
