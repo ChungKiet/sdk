@@ -3,7 +3,6 @@ module github.com/goonma/sdk
 go 1.17
 
 require (
- github.com/gorilla/websocket latest
 	github.com/Shopify/sarama v1.32.0
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
@@ -11,6 +10,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/joho/godotenv v1.4.0
