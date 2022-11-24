@@ -14,8 +14,6 @@ import (
 	ed "github.com/goonma/sdk/eventdriven"
 	j "github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/log"
-	"github.com/goonma/sdk/log/metric"
-	"github.com/goonma/sdk/pubsub/kafka"
 	"github.com/goonma/sdk/service/micro"
 	"github.com/goonma/sdk/utils"
 	"github.com/joho/godotenv"
@@ -123,21 +121,21 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	}
 	w.rd = redis
 
-	//ReInitial Destination for Logger
-	if log.LogMode() != 2 { // not in local, local just output log to std
-		log_dest := w.config.ReadVAR("logger/general/LOG_DEST")
-		if log_dest == "kafka" {
-			config_map := kafka.GetConfig(w.config, "logger/kafka")
-			log.SetDestKafka(config_map)
-		}
-	}
+	// //ReInitial Destination for Logger
+	// if log.LogMode() != 2 { // not in local, local just output log to std
+	// 	log_dest := w.config.ReadVAR("logger/general/LOG_DEST")
+	// 	if log_dest == "kafka" {
+	// 		config_map := kafka.GetConfig(w.config, "logger/kafka")
+	// 		log.SetDestKafka(config_map)
+	// 	}
+	// }
 
-	//init metric
-	config_map := kafka.GetConfig(w.config, "metric/kafka")
-	err_m := metric.Initial(service_name, config_map)
-	if err_m != nil {
-		log.Warn(err_m.Error(), "InitMetrics")
-	}
+	// //init metric
+	// config_map := kafka.GetConfig(w.config, "metric/kafka")
+	// err_m := metric.Initial(service_name, config_map)
+	// if err_m != nil {
+	// 	log.Warn(err_m.Error(), "InitMetrics")
+	// }
 
 	// init Subscriber
 	var err_s *e.Error

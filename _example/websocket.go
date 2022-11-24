@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/goonma/sdk/jwt"
@@ -18,37 +19,51 @@ func (w *Websocket) Consume(msg *message.Message) error {
 }
 
 func (w *Websocket) WsHandle(c echo.Context) error {
-	user := c.Get("user").(*jwt.CustomClaims)
+	user, ok := c.Get("user").(*jwt.CustomClaims)
 
-	conn, err := websocket.Upgrader.Upgrade(c.Response(),c.Request(),nil)
+	conn, err := websocket.Upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+
 	client := &websocket.Client{
-		Hub: w.Hub,
+		Hub:  w.Hub,
 		Conn: conn,
-		Send: make(chan []byte)
-	}
-	client.Hub.Register <- client
-	client.Hub.JoinRoom <- websocket.ClientRoom{
-		Room: fmt.Sprintf("user-%s",user.UserID),
-		Client: client,
+		Send: make(chan []byte),
 	}
 
-	defer func ()  {
-		client.Hub.Unregister <- client
-		client.Hub.LeaveRoom <- websocket.ClientRoom{
-			Room: fmt.Sprintf("user-%s",user.UserID),
+	client.Hub.Register <- client
+	if ok {
+		client.Hub.JoinRoom <- websocket.ClientRoom{
+			Room:   fmt.Sprintf("user-%s", user.UserID),
 			Client: client,
 		}
 	}
 
+	defer func() {
+		client.Hub.Unregister <- client
+		if ok {
+			client.Hub.LeaveRoom <- websocket.ClientRoom{
+				Room:   fmt.Sprintf("user-%s", user.UserID),
+				Client: client,
+			}
+		}
+	}()
+
 	go client.ReadPump()
 	go client.WritePump()
+
+	ticker := time.NewTicker(5 * time.Second)
+	select {
+	case <-ticker.C:
+		client.Send <- []byte("Hello")
+	}
+	return nil
 }
 
 func main() {
 	var w Websocket
-	w.Initial("price_data",w.WsHandle,w.Consume)
+	w.Initial("price_data", w.WsHandle, w.Consume)
+	w.Start()
 }
