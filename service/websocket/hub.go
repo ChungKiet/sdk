@@ -58,24 +58,28 @@ func (h *Hub) run() {
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
-				close(client.Send)
+				close(client.send)
 			}
 		case cr := <-h.JoinRoom:
+			_, exist := h.Rooms[cr.Room]
+			if !exist {
+				h.Rooms[cr.Room] = map[*Client]bool{}
+			}
 			h.Rooms[cr.Room][cr.Client] = true
 		case cr := <-h.LeaveRoom:
 			delete(h.Rooms[cr.Room], cr.Client)
 		case message := <-h.Broadcast:
 			for client := range h.Clients {
 				select {
-				case client.Send <- message:
+				case client.send <- message:
 				default:
-					close(client.Send)
+					close(client.send)
 					delete(h.Clients, client)
 				}
 			}
 		case roomMsg := <-h.RoomBroadcast:
 			for client := range h.Rooms[roomMsg.Room] {
-				client.Send <- roomMsg.Msg
+				client.send <- roomMsg.Msg
 			}
 		}
 	}

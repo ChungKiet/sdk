@@ -8,7 +8,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	e "github.com/goonma/sdk/base/error"
 	"github.com/goonma/sdk/base/event"
-	ev "github.com/goonma/sdk/base/event"
 	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
 	ed "github.com/goonma/sdk/eventdriven"
@@ -26,33 +25,15 @@ type Websocket struct {
 	port         string
 	service_name string
 	config       *vault.Vault
-
-	key string
-
-	Srv *echo.Echo
-
-	Hub *Hub
-
-	//Ws handler func
-
+	key          string
+	Srv          *echo.Echo
+	Hub          *Hub
 	//event driven subscriber, only 1
-	Sub ed.EventDriven
-	//retry delete Uid in redis publisher
-	//redis_pub ed.EventDriven
-	//log publisher
-	log_pub ed.EventDriven
-	//event driven for multi publisher
-	Pub map[string]*ed.EventDriven
+	Ev ed.EventDriven
 	//micro client
 	Client map[string]*micro.MicroClient
-
 	// Redis
 	rd r.CacheHelper
-
-	//default don't subscriber log for push item process success to kafka_item_success
-	init_subscriber_log bool
-	//defaul don't check redis Uid
-	init_check_uid bool
 }
 
 func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, subCallbackfn event.ConsumeFn, args ...interface{}) {
@@ -121,67 +102,33 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	}
 	w.rd = redis
 
-	// //ReInitial Destination for Logger
-	// if log.LogMode() != 2 { // not in local, local just output log to std
-	// 	log_dest := w.config.ReadVAR("logger/general/LOG_DEST")
-	// 	if log_dest == "kafka" {
-	// 		config_map := kafka.GetConfig(w.config, "logger/kafka")
-	// 		log.SetDestKafka(config_map)
-	// 	}
-	// }
-
-	// //init metric
-	// config_map := kafka.GetConfig(w.config, "metric/kafka")
-	// err_m := metric.Initial(service_name, config_map)
-	// if err_m != nil {
-	// 	log.Warn(err_m.Error(), "InitMetrics")
-	// }
-
 	// init Subscriber
 	var err_s *e.Error
-	if w.init_subscriber_log {
-		err_s = w.Sub.InitialSubscriber(
-			w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "sub/kafka"),
-			service_name,
-			subCallbackfn,
-			w.LogEvent)
-	} else {
-		err_s = w.Sub.InitialSubscriber(
+	check, err_p := w.config.CheckPathExist("websocket/" + service_name + "/sub/kafka")
+	if err_p != nil {
+		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
+	}
+	if check {
+		err_s = w.Ev.InitialSubscriber(
 			w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "sub/kafka"),
 			service_name,
 			subCallbackfn,
 			nil)
-	}
-	if err_s != nil {
-		log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+		if err_s != nil {
+			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+		}
 	}
 
-	check, err_p := w.config.CheckPathExist("websocket/" + service_name + "/pub/kafka")
+	check, err_p = w.config.CheckPathExist("websocket/" + service_name + "/pub/kafka")
 	if err_p != nil {
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
-	// Init publisher
-	w.Pub = make(map[string]*ed.EventDriven)
 	if check {
-		event_list := w.config.ListItemByPath("websocket/" + service_name + "/pub/kafka")
-		for _, event := range event_list {
-			if !Map_PublisherContains(w.Pub, event) && event != "general" {
-				w.Pub[event] = &ed.EventDriven{}
-				//micro.Pub[event].SetNoUpdatePublishTime(true)
-				err := w.Pub[event].InitialPublisherWithGlobal(w.config, fmt.Sprintf("%s/%s/%s", "websocket/"+service_name, "pub/kafka", event), w.config.GetServiceName(), event)
-				if err != nil {
-					log.ErrorF(err.Msg(), w.config.GetServiceName(), "Initial")
-				}
-			}
+		err_s = w.Ev.InitialPublisher(w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "pub/kafka"), service_name)
+		if err_s != nil {
+			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 		}
 	}
-	// else {
-	// 	w.Pub["main"] = &ed.EventDriven{}
-	// 	err_p := w.Pub["main"].InitialPublisher(w.config, "eventbus/kafka", service_name)
-	// 	if err_p != nil {
-	// 		log.ErrorF(err_p.Msg(), err_p.Group(), err_p.Key())
-	// 	}
-	// }
 
 	//micro client call service
 	if len(args) > 0 {
@@ -195,13 +142,6 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		}
 	}
 
-	//consume log, reinit
-	if w.init_subscriber_log {
-		w.InitConsumedLog()
-		fmt.Println("*****Initiation consumed log*****")
-	} else {
-		fmt.Println("*****Ignore consumed log*****")
-	}
 }
 
 func (w *Websocket) Start() {
@@ -218,26 +158,10 @@ func (w *Websocket) Start() {
 		}
 	}()
 
-	err := w.Sub.Subscribe()
+	err := w.Ev.Subscribe()
 	if err != nil {
 		log.ErrorF(err.Msg(), err.Group(), err.Key())
 	}
-}
-
-func (w *Websocket) InitConsumedLog() {
-	//initial publisher for streaming consumed Item to DB for easy tracking
-	w.log_pub.SetNoUpdatePublishTime(true)
-	err := w.log_pub.InitialPublisher(w.config, fmt.Sprintf("%s/%s/%s", "websocket", w.service_name, "consumed_log/kafka"), w.service_name, "Consummer Logger")
-	if err != nil {
-		log.ErrorF(err.Msg(), err.Group(), err.Key())
-	}
-}
-
-func (w *Websocket) SetInitSubscriberLog(i bool) {
-	w.init_subscriber_log = i
-}
-func (w *Websocket) SetInitCheckUID(i bool) {
-	w.init_check_uid = i
 }
 
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
@@ -272,12 +196,4 @@ func (w *Websocket) InitialMicroClient(remote_services map[string]string, initCo
 			}
 		}
 	}
-}
-
-func (w *Websocket) LogEvent(e ev.Event) error {
-	err := w.log_pub.Publish(e)
-	if err != nil {
-		fmt.Println(err.Msg())
-	}
-	return nil
 }

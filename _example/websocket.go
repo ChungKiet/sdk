@@ -2,12 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/goonma/sdk/base/event"
+	base_websocket "github.com/goonma/sdk/base/websocket"
 	"github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/service/websocket"
 	"github.com/labstack/echo/v4"
@@ -18,11 +17,6 @@ type Websocket struct {
 }
 
 func (w *Websocket) Consume(msg *message.Message) error {
-	var eventData event.Event
-	if err := json.Unmarshal(msg.Payload, &eventData); err != nil {
-		return err
-	}
-	fmt.Printf("%+v\n", eventData.EventData)
 	return nil
 }
 
@@ -37,16 +31,12 @@ func (w *Websocket) WsHandle(c echo.Context) error {
 	}
 	defer conn.Close()
 
-	client := &websocket.Client{
-		Hub:  w.Hub,
-		Conn: conn,
-		Send: make(chan []byte),
-	}
+	client := websocket.NewClient(w.Hub, conn)
 
 	client.Hub.Register <- client
 	if ok {
 		client.Hub.JoinRoom <- websocket.ClientRoom{
-			Room:   fmt.Sprintf("user-%s", user.UserID),
+			Room:   user.UserID,
 			Client: client,
 		}
 	}
@@ -54,10 +44,7 @@ func (w *Websocket) WsHandle(c echo.Context) error {
 	defer func() {
 		client.Hub.Unregister <- client
 		if ok {
-			client.Hub.LeaveRoom <- websocket.ClientRoom{
-				Room:   fmt.Sprintf("user-%s", user.UserID),
-				Client: client,
-			}
+			client.LeaveAllRooms()
 		}
 	}()
 
@@ -65,10 +52,34 @@ func (w *Websocket) WsHandle(c echo.Context) error {
 	go client.WritePump()
 
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	bcastTicket := time.NewTicker(10 * time.Second)
+	defer bcastTicket.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			client.Send <- []byte("Hello")
+			println("num of connections: ", len(client.Hub.Rooms))
+			sendData := make([]interface{}, 0)
+			sendData = append(sendData, "aaaaa")
+			data := base_websocket.WsEvent{
+				Event: conn.LocalAddr().Network(),
+				Data:  sendData,
+			}
+			byteData, _ := json.Marshal(data)
+			client.Hub.RoomBroadcast <- websocket.RoomBroadCastMsg{
+				Room: "test",
+				Msg:  byteData,
+			}
+		case <-bcastTicket.C:
+			sendData := make([]interface{}, 0)
+			sendData = append(sendData, "aaaaa")
+			data := base_websocket.WsEvent{
+				Event: "Broadcast",
+				Data:  sendData,
+			}
+			byteData, _ := json.Marshal(data)
+			client.Hub.Broadcast <- byteData
 		}
 	}
 	return nil

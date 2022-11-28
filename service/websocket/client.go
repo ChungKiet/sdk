@@ -41,7 +41,16 @@ type Client struct {
 	Conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	Send chan []byte
+	send chan []byte
+}
+
+func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+	return &Client{
+		Hub:   hub,
+		Rooms: make([]string, 0),
+		Conn:  conn,
+		send:  make(chan []byte),
+	}
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -52,12 +61,7 @@ type Client struct {
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.Unregister <- c
-		for _, room := range c.Rooms {
-			c.Hub.LeaveRoom <- ClientRoom{
-				Client: c,
-				Room:   room,
-			}
-		}
+		c.LeaveAllRooms()
 		c.Conn.Close()
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
@@ -87,7 +91,7 @@ func (c *Client) WritePump() {
 	}()
 	for {
 		select {
-		case message, ok := <-c.Send:
+		case message, ok := <-c.send:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -102,10 +106,10 @@ func (c *Client) WritePump() {
 			w.Write(message)
 
 			// Add queued chat messages to the current websocket message.
-			n := len(c.Send)
+			n := len(c.send)
 			for i := 0; i < n; i++ {
 				w.Write(newline)
-				w.Write(<-c.Send)
+				w.Write(<-c.send)
 			}
 
 			if err := w.Close(); err != nil {
@@ -116,6 +120,15 @@ func (c *Client) WritePump() {
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		}
+	}
+}
+
+func (c *Client) LeaveAllRooms() {
+	for _, room := range c.Rooms {
+		c.Hub.LeaveRoom <- ClientRoom{
+			Client: c,
+			Room:   room,
 		}
 	}
 }
