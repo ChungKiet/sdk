@@ -198,8 +198,9 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 				return nil,nil
 			}
 			if os.Getenv("ENV")=="local"{
-				fmt.Println("Key: ", sv.key,"Token: ",token)
+				fmt.Println("KEY",sv.key,"Token: ",token)
 			}
+			
 			Claims_info,err:=j.VerifyJWTToken(sv.key,token)
 			if err!=nil{
 				return nil,err 
@@ -213,7 +214,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 					return token,nil
 				}
 			}
-			return nil,errors.New("_ACCESS_DENY_")
+			return token,nil
 		},
 	}
 	/*

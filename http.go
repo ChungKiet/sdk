@@ -4,8 +4,8 @@ import(
 	"github.com/goonma/sdk/utils"
 	"github.com/labstack/echo/v4"
 	"net/http"
-	"github.com/goonma/sdk/jwt"
-	"fmt"
+	//"github.com/goonma/sdk/jwt"
+	//"fmt"
 )
 type HTTP struct{
 	httpServer.HTTPServer
@@ -22,12 +22,12 @@ var whitelist_routes []string
 //ACL: role_id,routes permision 
 var acl map[string]interface{}
 func main(){
-	key:=`jM+KpUEtvIRE+t8TsH*XgTqnGktYsmaA7%%N&zWudMFJv5eY)yXvY(3!qkcxkK`
-	tk,_:=jwt.GenerateJWTToken(key,"1","abc","","Login", 1,600)
-	fmt.Println(tk)
-	claim,err:=jwt.VerifyJWTToken(key,"eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJ1c2VyaWQiOiI2MzY3ZDY2ODQ4ZWNiZDQ4YmY1Y2NhMWQiLCJyb2xlaWQiOjEsInVzZXJuYW1lIjoiIiwiZW1haWwiOiJuZ3V5ZW5kdWNsb25nLmljdEBnbWFpbC5jb20iLCJ0eXBlIjoiMSIsImlzcyI6Ikdvb25tYS5jb20iLCJleHAiOjE2Njk4MjgyNTd9.zuWLtpavxJsrgmpO8wWleFC0vPUF3JDvn7FKw9OvSueoHBArEf8DZkwmIuOCiWwvwW8-_Q3wUue_JXxSHxpelw")
-	fmt.Printf("%+v",claim)
-	fmt.Println(err)
+	//key:=`jM+KpUEtvIRE+t8TsH*XgTqnGktYsmaA7%%N&zWudMFJv5eY)yXvY(3!qkcxkK`
+	//tk,_:=jwt.GenerateJWTToken(key,"1","abc","","Login", 1,600)
+	//fmt.Println(tk)
+	
+	//fmt.Printf("%+v",claim)
+	//fmt.Println(err)
 	//whitelist route
 	whitelist_routes=[]string{"/hello"}
 	//**********ACL*************
