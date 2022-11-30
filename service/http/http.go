@@ -251,6 +251,40 @@ func (sv *HTTPServer)SetPathKey(path string) error {
 	sv.key=path
 	return nil
 }
+func (sv *HTTPServer)GetUserID(c echo.Context) (string,error) {
+	token,err:=sv.GetToken(c)
+	if err!=nil{
+		return "",err 
+	}
+	Claims_info,err:=j.VerifyJWTToken(sv.key,token)
+	if err!=nil{
+		return "",err 
+	}
+	return Claims_info.UserID,nil
+}
+func (sv *HTTPServer)GetRoleID(c echo.Context) (int,error) {
+	token,err:=sv.GetToken(c)
+	if err!=nil{
+		return 0,err 
+	}
+	Claims_info,err:=j.VerifyJWTToken(sv.key,token)
+	if err!=nil{
+		return 0,err 
+	}
+	return Claims_info.RoleID,nil
+}
+func (sv *HTTPServer)GetToken(c echo.Context) (string,error) {
+	authen_str:=c.Request().Header.Get("Authorization")
+	arr:=utils.Explode(authen_str," ")
+	if len(arr)!=2{
+		token:=c.QueryParam("token")
+		if token==""{
+			return "",errors.New("_JWT_INVALID_")
+		}
+		return token,nil
+	}
+	return arr[1],nil
+}
 func (sv *HTTPServer)Restricted(c echo.Context) error {
 	//user := c.Get("user").(*jwt.Token)
 	//claims := user.Claims.(*jwt.CustomClaims)
