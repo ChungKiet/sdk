@@ -8,7 +8,8 @@ import(
 type HTTP struct{
 	httpServer.HTTPServer
 }
-func hello(c echo.Context) error {
+func (sv *HTTP)hello(c echo.Context) error {
+	sv.GetToken(c)
 	return c.String(http.StatusOK, "Hello, World!")
 }
 func authenmethod(c echo.Context) error {
@@ -34,7 +35,7 @@ func main(){
 	w.Initial("api",nil,false,nil,whitelist_routes,acl)
 	w.SetPathKey("path/")
 	//add route
-	w.Srv.GET("/hello", hello)
+	w.Srv.GET("/hello", w.hello)
 	w.Srv.POST("/authenmethod", authenmethod)
 	//
 	w.Start()
