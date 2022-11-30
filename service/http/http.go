@@ -184,7 +184,10 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			if os.Getenv("IGNORE_TOKEN")=="true"{
 				return true
 			}
-			fmt.Println("Route: ",c.Request().URL.Path)
+			if os.Getenv("ENV")=="local"{
+				fmt.Println("Route: ",c.Request().URL.Path)
+			}
+			
 			if utils.Contains(routes_ignore_jwt,c.Request().URL.Path) {
 			  return true
 			}
@@ -193,6 +196,9 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
 			if os.Getenv("IGNORE_TOKEN")=="true"{
 				return nil,nil
+			}
+			if os.Getenv("ENV")=="local"{
+				fmt.Println("Key: ", sv.key,"Token: ",token)
 			}
 			Claims_info,err:=j.VerifyJWTToken(sv.key,token)
 			if err!=nil{
