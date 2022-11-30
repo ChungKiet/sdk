@@ -184,6 +184,7 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 			if os.Getenv("IGNORE_TOKEN")=="true"{
 				return true
 			}
+			fmt.Println("Route: ",c.Request().URL.Path)
 			if utils.Contains(routes_ignore_jwt,c.Request().URL.Path) {
 			  return true
 			}
