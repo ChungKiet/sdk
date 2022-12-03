@@ -4,8 +4,8 @@ import(
 	"github.com/goonma/sdk/utils"
 	"github.com/labstack/echo/v4"
 	"net/http"
-	//"github.com/goonma/sdk/jwt"
-	//"fmt"
+	"github.com/goonma/sdk/jwt"
+	"fmt"
 )
 type HTTP struct{
 	httpServer.HTTPServer
@@ -22,9 +22,9 @@ var whitelist_routes []string
 //ACL: role_id,routes permision 
 var acl map[string]interface{}
 func main(){
-	//key:=`jM+KpUEtvIRE+t8TsH*XgTqnGktYsmaA7%%N&zWudMFJv5eY)yXvY(3!qkcxkK`
-	//tk,_:=jwt.GenerateJWTToken(key,"1","abc","","Login", 1,600)
-	//fmt.Println(tk)
+	key:=`jM+KpUEtvIRE+t8TsH*XgTqnGktYsmaA7%%N&zWudMFJv5eY)yXvY(3!qkcxkK`
+	tk,_:=jwt.GenerateJWTToken(key,"1","abc","","Login", 1,60000000000)
+	fmt.Println(tk)
 	
 	//fmt.Printf("%+v",claim)
 	//fmt.Println(err)

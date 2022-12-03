@@ -222,6 +222,12 @@ func (sv *HTTPServer) Initial(service_name string,args...interface{}){
 	g := e.Group("/admin", <your-middleware>)
 	g.GET("/secured", <your-handler>) =>/admin/secured
 	*/
+	//disable CORS
+	sv.Srv.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
+	}))
 	sv.Srv.Use(middleware.JWTWithConfig(config_jwt))
 }
 
