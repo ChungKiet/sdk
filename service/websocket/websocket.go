@@ -29,7 +29,10 @@ type Websocket struct {
 	Srv          *echo.Echo
 	Hub          *Hub
 	//event driven subscriber, only 1
-	Ev ed.EventDriven
+	pub ed.EventDriven
+	network_sub ed.EventDriven
+	broadcast_sub ed.EventDriven
+	best_network_sub ed.EventDriven
 	//micro client
 	Client map[string]*micro.MicroClient
 	// Redis
