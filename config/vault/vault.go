@@ -99,6 +99,9 @@ func (v *Vault) Initial(service_name string, args ...string) {
 		v.root_path = dir
 		//v.root_path = "kv/data/"
 	}
+	if utils.Right(v.root_path,1)!="/"{
+		v.root_path=v.root_path+"/"
+	}
 	log.Info(fmt.Sprintf("%s %s %s %s: %s","VAULT server ",v.host," root path: ",v.root_path," connected"),"VAULT","INITIATION")
 }
 func (v *Vault) InitialByToken(host, port, token string, service_name string, args ...string) {
@@ -130,6 +133,9 @@ func (v *Vault) InitialByToken(host, port, token string, service_name string, ar
 		v.root_path = "secret/data/"
 		//v.root_path = "kv/data/"
 	}
+	if utils.Right(v.root_path,1)!="/"{
+		v.root_path=v.root_path+"/"
+	}
 	log.Info(fmt.Sprintf("%s %s %s %s: %s","VAULT server ",v.host," root path: ",v.root_path," connected"),"VAULT","INITIATION")
 }
 func (v *Vault) ReadVAR(path string) string {
@@ -142,7 +148,7 @@ func (v *Vault) ReadVAR(path string) string {
 	folder:=strings.Join(arr[:len(arr)-1], "/")
 	//fmt.Println(fmt.Sprintf("%s/%s",v.root_path,folder))
 	//data, err := v.client.Logical().Read("secret/metadata/data/worker/woker1/sub/kafka")
-	data, err := v.client.Logical().Read(fmt.Sprintf("%s/%s",v.root_path,folder))
+	data, err := v.client.Logical().Read(fmt.Sprintf("%s%s",v.root_path,folder))
 	//data, err := v.client.Logical().List("secret/metadata/data/worker/kafka-to-alert-mgt/sub/kafka")
 	//fmt.Printf("%+v\r\n",data)
 	//fmt.Println(err)
@@ -209,7 +215,7 @@ func (v *Vault) ListItemByPath(path string) []string {
 	if path==""{
 		log.Error("ENV path is empty", "VAULT_ERROR")
 	}
-	data, err := v.client.Logical().List(fmt.Sprintf("%s/%s",v.root_path,path))
+	data, err := v.client.Logical().List(fmt.Sprintf("%s%s",v.root_path,path))
 	if err != nil {
 		log.Error(err.Error(), "VAULT_ERROR")
 		return nil
