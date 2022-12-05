@@ -43,7 +43,7 @@ type Worker struct {
 	redis_pub ed.EventDriven
 
 	//redis
-	rd r.CacheHelper
+	Rd r.CacheHelper
 	//micro client
 	Client map[string]*micro.MicroClient
 	//default init subscriber log for push item processs success to kafka_item_sucess
@@ -97,7 +97,7 @@ func (w *Worker) Initial(worker_name string, callbackfn event.ConsumeFn, args ..
 		if err_r != nil {
 			log.ErrorF(err_r.Msg())
 		}
-		w.rd = redis
+		w.Rd = redis
 	}
 	//default alway retry delete uid in DB(redis), this will push item to kafka topic for other worker retry
 	if !w.uninit_retry_delete_uid {
