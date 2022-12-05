@@ -14,6 +14,7 @@ import(
 	"time"
 	"fmt"
 	"os"
+	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 )
 // Client object
 type MicroClient struct{
@@ -173,4 +174,11 @@ func CtxWithToken(ctx context.Context, token string,args...string) context.Conte
 	)
 	nCtx := metautils.NiceMD(md).ToOutgoing(ctx)
 	return nCtx
+}
+func FowardCtx(ctx context.Context) context.Context {
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	if err!=nil{
+		token="";
+	}
+	return CtxWithToken(ctx,token)
 }
