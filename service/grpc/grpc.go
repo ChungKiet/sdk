@@ -238,6 +238,7 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	// WARNING: in production define your own type to avoid context collisions
 	//newCtx := context.WithValue(ctx, "tokenInfo", tokenInfo)
 	//return newCtx, nil*/
+	fmt.Printf("context 1: %+v",ctx)
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok{
 		if len(md.Get("userid"))==0{
@@ -247,6 +248,7 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 			ctx = metadata.AppendToOutgoingContext(ctx, "roleid",utils.IntToS(claims.RoleID))
 		}
 	}
+	fmt.Printf("context 2: %+v",ctx)
 	return ctx,nil
 }
 
