@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/goonma/sdk/base/event"
 	base_websocket "github.com/goonma/sdk/base/websocket"
 	"github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/service/websocket"
@@ -16,7 +18,10 @@ type Websocket struct {
 	websocket.Websocket
 }
 
-func (w *Websocket) Consume(msg *message.Message) error {
+func (w *Websocket) PriceConsume(msg *message.Message) error {
+	var evt event.Event
+	_ = json.Unmarshal(msg.Payload, evt)
+	fmt.Printf("event %+v\n", evt.EventName)
 	return nil
 }
 
@@ -87,6 +92,9 @@ func (w *Websocket) WsHandle(c echo.Context) error {
 
 func main() {
 	var w Websocket
-	w.Initial("price_data", w.WsHandle, w.Consume)
+	subMap := make(map[string]event.ConsumeFn)
+	subMap["exchange_price_data_bsc"] = w.PriceConsume
+	w.Initial("price_data", w.WsHandle, subMap)
 	w.Start()
+	select {}
 }
