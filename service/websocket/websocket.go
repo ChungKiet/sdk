@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	e "github.com/goonma/sdk/base/error"
 	"github.com/goonma/sdk/base/event"
 	r "github.com/goonma/sdk/cache/redis"
@@ -21,6 +22,7 @@ import (
 )
 
 type Websocket struct {
+	Id           string
 	host         string
 	port         string
 	service_name string
@@ -29,17 +31,17 @@ type Websocket struct {
 	Srv          *echo.Echo
 	Hub          *Hub
 	//event driven subscriber, only 1
-	pub ed.EventDriven
-	network_sub ed.EventDriven
-	broadcast_sub ed.EventDriven
-	best_network_sub ed.EventDriven
+	Pub        ed.EventDriven
+	NetworkSub ed.EventDriven
+	Sub        map[string]*ed.EventDriven
 	//micro client
 	Client map[string]*micro.MicroClient
 	// Redis
 	rd r.CacheHelper
 }
 
-func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, subCallbackfn event.ConsumeFn, args ...interface{}) {
+func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) {
+	w.Id = uuid.NewString()
 	err := godotenv.Load(os.ExpandEnv("/config/.env"))
 	if err != nil {
 		err := godotenv.Load(os.ExpandEnv(".env"))
@@ -107,18 +109,29 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 
 	// init Subscriber
 	var err_s *e.Error
+	w.Sub = make(map[string]*ed.EventDriven)
 	check, err_p := w.config.CheckPathExist("websocket/" + service_name + "/sub/kafka")
 	if err_p != nil {
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
 	if check {
-		err_s = w.Ev.InitialSubscriber(
-			w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "sub/kafka"),
-			service_name,
-			subCallbackfn,
-			nil)
-		if err_s != nil {
-			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+		// err_s = w.Ev.InitialSubscriber(
+		// 	w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "sub/kafka"),
+		// 	service_name,
+		// 	subCallbackfn,
+		// 	nil)
+		// if err_s != nil {
+		// 	log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+		// }
+		event_list := w.config.ListItemByPath("websocket/" + service_name + "/sub/kafka")
+		for _, event := range event_list {
+			if callback, ok := mapSubCallbackfn[event]; ok {
+				w.Sub[event] = &ed.EventDriven{}
+				err_s = w.Sub[event].InitialSubscriber(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", event), service_name, callback, nil)
+				if err_s != nil {
+					log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+				}
+			}
 		}
 	}
 
@@ -127,7 +140,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
 	if check {
-		err_s = w.Ev.InitialPublisher(w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "pub/kafka"), service_name)
+		err_s = w.Pub.InitialPublisher(w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "pub/kafka"), service_name)
 		if err_s != nil {
 			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 		}
@@ -160,10 +173,13 @@ func (w *Websocket) Start() {
 			w.Srv.Logger.Fatal("shutting down the server")
 		}
 	}()
+	for _, sub := range w.Sub {
+		go func(sub *ed.EventDriven) {
+			if err := sub.Subscribe(); err != nil {
+				log.ErrorF(err.Msg(), err.Group(), err.Key())
+			}
+		}(sub)
 
-	err := w.Ev.Subscribe()
-	if err != nil {
-		log.ErrorF(err.Msg(), err.Group(), err.Key())
 	}
 }
 
