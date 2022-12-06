@@ -66,13 +66,13 @@ func (micro *Micro) Initial(config *vault.Vault,args...interface{}){
 	micro.two_FA_Key=micro.Config.ReadVAR("key/2fa/KEY")
 	micro.token_Key=micro.Config.ReadVAR("key/api/KEY")
 	//initial Event
+	service_path:=strings.ReplaceAll(micro.Config.GetServiceName(),".","/")
 	if len(args)>1{
 		c,err:=utils.ItoBool(args[1])
 		if err!=nil{
 			log.Warn("Convert Iterface to Bool :"+err.Error(),"MICRO","HOST_NAME")
 		}
 		if utils.Type(args[1])=="bool" && c{
-			service_path:=strings.ReplaceAll(micro.Config.GetServiceName(),".","/")
 			//find publisher list
 			check,err_p:=micro.Config.CheckPathExist(service_path+"/pub/kafka")
 			if err_p!=nil{
@@ -91,9 +91,14 @@ func (micro *Micro) Initial(config *vault.Vault,args...interface{}){
 						}
 					}
 				}
-			}else{//use main bus
+			}else{//
+				path:="eventbus/kafka"
+				check,err:=micro.Config.CheckItemExist(service_path+"/pub/kafka")
+				if err==nil && check{//if pub/kafka is object not folder then use it, else use main bus
+					path=service_path+"/pub/kafka"
+				}
 				micro.Pub["main"]=&ed.EventDriven{}
-				err_p:=micro.Pub["main"].InitialPublisher(micro.Config,"eventbus/kafka",micro.Id)
+				err_p:=micro.Pub["main"].InitialPublisher(micro.Config,path,micro.Id)
 				if err_p!=nil{
 					log.ErrorF(err_p.Msg(),err_p.Group(),err_p.Key())
 				}
@@ -148,7 +153,7 @@ func (micro *Micro)PushEvent(ev event.Event) *e.Error{
 		Flow       : ev.Flow,
 		PushlishTime: time.Now(),
 	}
-	if !Map_PublisherContains(micro.Pub,ev.EventName) && ev.EventName!="general"{
+	if Map_PublisherContains(micro.Pub,ev.EventName) && ev.EventName!="general"{
 		return micro.Pub[ev.EventName].Publish(event)
 	}else{
 		return micro.Pub["main"].Publish(event)
