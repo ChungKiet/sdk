@@ -23,3 +23,4 @@ func HashMD5(text string) string {
 func Base64(data string) string{
 	return base64.StdEncoding.EncodeToString([]byte(data))
 }
+
