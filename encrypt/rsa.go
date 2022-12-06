@@ -1,4 +1,4 @@
-package hash
+package encrypt
 import (
 	"crypto/rand"
 	"crypto/rsa"
