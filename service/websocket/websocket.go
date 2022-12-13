@@ -187,6 +187,10 @@ func (w *Websocket) GetConfig() *vault.Vault {
 	return w.config
 }
 
+func (w *Websocket) GetServiceName() string {
+	return w.service_name
+}
+
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
 	if len(m) == 0 {
 		return false
