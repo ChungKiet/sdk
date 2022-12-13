@@ -183,6 +183,10 @@ func (w *Websocket) Start() {
 	}
 }
 
+func (w *Websocket) GetConfig() *vault.Vault {
+	return w.config
+}
+
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
 	if len(m) == 0 {
 		return false
