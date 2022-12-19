@@ -140,6 +140,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
 	if check {
+		w.Pub = make(map[string]*ed.EventDriven)
 		event_list := w.config.ListItemByPath("websocket/" + service_name + "/pub/kafka")
 		for _, event := range event_list {
 			if !Map_PublisherContains(w.Pub, event) && event != "general" {
