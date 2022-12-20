@@ -31,7 +31,7 @@ type Websocket struct {
 	Srv          *echo.Echo
 	Hub          *Hub
 	//event driven subscriber, only 1
-	Pub        ed.EventDriven
+	Pub        map[string]*ed.EventDriven
 	NetworkSub ed.EventDriven
 	Sub        map[string]*ed.EventDriven
 	//micro client
@@ -141,9 +141,16 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
 	if check {
-		err_s = w.Pub.InitialPublisher(w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "pub/kafka"), service_name)
-		if err_s != nil {
-			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+		w.Pub = make(map[string]*ed.EventDriven)
+		event_list := w.config.ListItemByPath("websocket/" + service_name + "/pub/kafka")
+		for _, event := range event_list {
+			if !Map_PublisherContains(w.Pub, event) && event != "general" {
+				w.Pub[event] = &ed.EventDriven{}
+				err := w.Pub[event].InitialPublisherWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "pub/kafka", event), service_name, event)
+				if err != nil {
+					log.ErrorF(err.Msg(), service_name, "Initial")
+				}
+			}
 		}
 		w.Pub.SetNoValidUID(true)
 	}
@@ -183,6 +190,14 @@ func (w *Websocket) Start() {
 		}(sub)
 
 	}
+}
+
+func (w *Websocket) GetConfig() *vault.Vault {
+	return w.config
+}
+
+func (w *Websocket) GetServiceName() string {
+	return w.service_name
 }
 
 func Map_PublisherContains(m map[string]*ed.EventDriven, item string) bool {
