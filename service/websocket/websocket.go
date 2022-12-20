@@ -150,9 +150,10 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 				if err != nil {
 					log.ErrorF(err.Msg(), service_name, "Initial")
 				}
+				w.Pub[event].SetNoValidUID(true)
 			}
 		}
-		w.Pub.SetNoValidUID(true)
+		
 	}
 
 	//micro client call service
