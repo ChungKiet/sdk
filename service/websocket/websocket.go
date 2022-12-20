@@ -131,6 +131,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 				if err_s != nil {
 					log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 				}
+				w.Sub[event].SetNoValidUID(true)
 			}
 		}
 	}
@@ -144,6 +145,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		if err_s != nil {
 			log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 		}
+		w.Pub.SetNoValidUID(true)
 	}
 
 	//micro client call service
