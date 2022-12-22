@@ -115,19 +115,11 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
 	}
 	if check {
-		// err_s = w.Ev.InitialSubscriber(
-		// 	w.config, fmt.Sprintf("%s/%s/%s", "websocket", service_name, "sub/kafka"),
-		// 	service_name,
-		// 	subCallbackfn,
-		// 	nil)
-		// if err_s != nil {
-		// 	log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
-		// }
 		event_list := w.config.ListItemByPath("websocket/" + service_name + "/sub/kafka")
 		for _, event := range event_list {
 			if callback, ok := mapSubCallbackfn[event]; ok {
 				w.Sub[event] = &ed.EventDriven{}
-				err_s = w.Sub[event].InitialSubscriber(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", event), service_name, callback, nil)
+				err_s = w.Sub[event].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", event), service_name, callback, nil)
 				if err_s != nil {
 					log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 				}
@@ -153,7 +145,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 				w.Pub[event].SetNoValidUID(true)
 			}
 		}
-		
+
 	}
 
 	//micro client call service
