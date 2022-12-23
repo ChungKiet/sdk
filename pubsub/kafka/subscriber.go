@@ -184,7 +184,7 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		config_map = global_config_map
 	}
-	consumer_group := fmt.Sprintf("%s-%s-consumer-group", sub.topic, hostname)
+	consumer_group := fmt.Sprintf("%s-consumer-group", hostname)
 	config_map["CONSUMER_GROUP"] = consumer_group
 	sub.config = config_map
 	brokers_str := config_map["BROKERS"]
