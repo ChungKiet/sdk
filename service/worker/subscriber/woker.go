@@ -14,6 +14,7 @@ import (
 	"github.com/goonma/sdk/db/mongo"
 	"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/service/micro"
+	r "github.com/goonma/sdk/cache/redis"
 	//"github.com/goonma/sdk/db/mongo/status"
 	//e "github.com/goonma/sdk/base/error"
 	"os"
@@ -30,8 +31,8 @@ type Worker struct {
 	Ed ed.EventDriven
 	//db map[string]dbconnection
 	Mgo  db.MongoDB
-	//retry delete Uid in redis publisher
-	redis_pub ed.EventDriven
+	//redis
+	Rd r.CacheHelper
 	//log publisher
 	log_pub ed.EventDriven
 	//micro client
@@ -40,10 +41,10 @@ type Worker struct {
 	init_publisher bool
 	//default don't subscriber log for push item processs success to kafka_item_sucess
 	init_subscriber_log bool
-	//defaul don't check redis Uid
-	init_check_uid bool
 	//default don't update consume time + finish time
 	no_update_processing_time bool
+	//detaul init redis cache
+	init_redis bool
 }
 
 //initial n worker
@@ -86,14 +87,7 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 		fmt.Println("*****Ignore no_inject false*****")
 		w.Ed.SetNoEvent(false)
 	}
-	//default don't check uid redis=> after consume item, worker do not delete Uid from Redis
-	if(w.init_check_uid){
-		w.Ed.SetNoValidUID(false)
-		//SetNoValidUID(true) => don't delete uid from redis after consumed item
-		//SetNoValidUID(false) =>delete uid from redis after consumed item
-	}else{
-		w.Ed.SetNoValidUID(true)
-	}
+	
 	//initial Event subscriber
 	//-for push item processed to kafka_item_succes, for kafka_item_fail push from router when TTL
 	// default use subscriber_log it not set from worker implement
@@ -159,6 +153,15 @@ func (w *Worker) Initial(worker_name string,callbackfn event.ConsumeFn,args...in
 	}else{
 		fmt.Println("*****Ignore consumed log*****")
 	}
+	//init redis
+	if w.init_redis {
+		fmt.Println("===Init Redis===")
+		redis, err_r := r.NewCacheHelper(w.config)
+		if err_r != nil {
+			log.ErrorF(err_r.Msg())
+		}
+		w.Rd = redis
+	}
 	
 }
 func (w *Worker) InitConsumedLog() {
@@ -175,9 +178,6 @@ func (w *Worker) SetInitPublisher(i bool) {
 }
 func (w *Worker) SetInitSubscriberLog(i bool) {
 	w.init_subscriber_log=i
-}
-func (w *Worker) SetInitCheckUID(i bool) {
-	w.init_check_uid=i
 }
 func (w *Worker) SetNoUpdateProcessingTime(i bool) {
 	w.no_update_processing_time=i
@@ -197,7 +197,9 @@ func (w *Worker) LogEvent(e ev.Event) error{
 	}
 	return nil
 }
-
+func (w *Worker) SetInitRedis(i bool) {
+	w.init_redis = i
+}
 func (w *Worker) GetServiceName(eventName string) (string,error){
 	return utils.GetServiceName(eventName)
 }

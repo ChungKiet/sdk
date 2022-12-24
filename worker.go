@@ -1,6 +1,6 @@
 package main 
 import (
-	worker "github.com/goonma/sdk/service/worker/event"
+	worker "github.com/goonma/sdk/service/worker/subscriber"
 	//ev "github.com/goonma/sdk/eventdriven"
 	//"github.com/goonma/sdk/log"
 	//"github.com/goonma/sdk/pubsub/kafka"	
@@ -18,11 +18,7 @@ type Worker struct{
 func main(){
 	//
 	var w Worker
-	//default worker don't initial publihser, if you want initial, set by bellow command
-	w.SetNoCheckDuplicate(true)
-	w.SetUnRetryDeleteUid(true)
-	w.SetNoInitSubscriberLog(true)
-	w.SetNoInitSubscriberLog(true)
+
 	//w.SetInitPublisher(true)
 	//no database
 	w.Initial("worker-demo",w.wkProcess,nil)//paste function process worker here

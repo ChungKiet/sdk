@@ -118,6 +118,7 @@ func GetConfig(vault *vault.Vault,config_path string) map[string]string{
 	m["VERIFY_SSL"]=vault.ReadVAR(fmt.Sprintf("%s/VERIFY_SSL",config_path))
 	m["NUM_CONSUMER"]=vault.ReadVAR(fmt.Sprintf("%s/NUM_CONSUMER",config_path))
 	m["CONSUMER_GROUP"]=vault.ReadVAR(fmt.Sprintf("%s/CONSUMER_GROUP",config_path))
+	m["NUM_POD"]=vault.ReadVAR(fmt.Sprintf("%s/NUM_POD",config_path))
 	return m
 }
 
@@ -198,6 +199,13 @@ func MergeConfig(global,local map[string]string) map[string]string{
 			m["VERIFY_SSL"]=local["VERIFY_SSL"]
 		}else{
 			m["VERIFY_SSL"]=global["VERIFY_SSL"]
+		}
+	}
+	if utils.Map_contains(global,"NUM_POD") || utils.Map_contains(local,"NUM_POD"){
+		if utils.Map_contains(local,"NUM_POD") && local["NUM_POD"]!=""{
+			m["NUM_POD"]=local["NUM_POD"]
+		}else{
+			m["NUM_POD"]=global["NUM_POD"]
 		}
 	}
 	return m

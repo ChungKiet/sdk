@@ -73,7 +73,32 @@ func (h *RedisHelper) Get(key string) (interface{},*e.Error) {
 	}
 	return value,nil
 }
-
+//return new value of key after increase old value
+func (h *RedisHelper) IncreaseInt(key string,value int) (int,*e.Error) {
+	if h.Client==nil{
+		return 0,e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	res:=0
+	//
+	err := h.Client.Watch(func(tx *redis.Tx) error {
+		n, err := tx.Get(key).Int()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+	
+		_, err = tx.Pipelined(func(pipe redis.Pipeliner) error {
+			res=n+value
+			pipe.Set(key, res,  time.Duration(300)* time.Second)
+			return nil
+		})
+		return err
+	}, key)
+	//
+	if err != nil {
+		return 0,e.New(err.Error(), "REDIS", "IncreaseInt")
+	}
+	return res,nil
+}
 func (h *RedisHelper) GetInterface(key string, value interface{}) (interface{}, *e.Error) {
 	if h.Client==nil{
 		return nil,e.New("Redis Client is null", "REDIS", "REDIS GetInterface")

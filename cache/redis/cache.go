@@ -23,6 +23,7 @@ type CacheHelper interface {
 	RenameKey(oldKey, newKey string) *e.Error
 	GetType(key string) (string, *e.Error)
 	Close() *e.Error
+	IncreaseInt(key string,value int) (int,*e.Error)
 }
 
 // CacheOption represents cache option

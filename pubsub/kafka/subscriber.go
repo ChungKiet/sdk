@@ -36,13 +36,11 @@ type Subscriber struct {
 	topic              string
 	ProcessFn          event.ConsumeFn
 	RePushEventFn      event.RePushFn
-	RetryDeleteRedisFn event.RetryDeleteRedisPushFn
 	Redis              redis.CacheHelper
 	logConsumeFn       event.WriteLogConsumeFn
 	num_consumer       int
 	no_ack             bool
 	no_inject          bool
-	no_cache           bool
 	//
 	config map[string]string
 }
@@ -130,16 +128,12 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	} else {
 		fmt.Println("===========Ignore Initiation Processed Item Log======")
 	}
-	//initial cache(redis)
-	if !sub.no_cache {
-		fmt.Println("===========Initiation Redis for delete Uid: True======")
-		var errc *e.Error
-		sub.Redis, errc = redis.NewCacheHelper(vault)
-		if errc != nil {
-			return errc
-		}
-	} else {
-		fmt.Println("===========Initiation Redis for delete Uid: False======")
+	//	fmt.Println("===========Initiation Redis for delete Uid: True======")
+	fmt.Println("===========Initiation Redis for check other pod ready======")
+	var errc *e.Error
+	sub.Redis,errc=redis.NewCacheHelper(vault)
+	if errc!=nil{
+		return errc
 	}
 	fmt.Println("=>No inject: ", sub.no_inject)
 	if sub.logConsumeFn == nil {
@@ -148,11 +142,7 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 		fmt.Println("=>Log consumedFn: False")
 	}
 
-	if sub.RetryDeleteRedisFn == nil {
-		fmt.Println("=>RetryDeleteRedisFn: False")
-	} else {
-		fmt.Println("=>RetryDeleteRedisFn: True")
-	}
+		 
 	return nil
 }
 
@@ -240,17 +230,6 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("===========Ignore Initiation Processed Item Log======")
 	}
-	//initial cache(redis)
-	if !sub.no_cache {
-		fmt.Println("===========Initiation Redis for delete Uid: True======")
-		var errc *e.Error
-		sub.Redis, errc = redis.NewCacheHelper(vault)
-		if errc != nil {
-			return errc
-		}
-	} else {
-		fmt.Println("===========Initiation Redis for delete Uid: False======")
-	}
 	fmt.Println("=>No inject: ", sub.no_inject)
 	if sub.logConsumeFn == nil {
 		fmt.Println("=>Log consumedFn: True")
@@ -258,11 +237,14 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 		fmt.Println("=>Log consumedFn: False")
 	}
 
-	if sub.RetryDeleteRedisFn == nil {
-		fmt.Println("=>RetryDeleteRedisFn: False")
+	fmt.Println("=>No inject: ", sub.no_inject)
+	if sub.logConsumeFn == nil {
+		fmt.Println("=>Log consumedFn: True")
 	} else {
-		fmt.Println("=>RetryDeleteRedisFn: True")
+		fmt.Println("=>Log consumedFn: False")
 	}
+
+
 	return nil
 }
 
@@ -279,7 +261,32 @@ func (sub *Subscriber) Consume() *e.Error {
 	brokers_str := sub.config["BROKERS"]
 	brokers := utils.Explode(brokers_str, ",")
 	consumer_group := sub.config["CONSUMER_GROUP"]
-
+	//wait for other pod
+	str_num_pod:=sub.config["NUM_POD"]
+	//pod start success => increase number of pod
+	_,err:=sub.Redis.IncreaseInt(consumer_group,1)
+	if err!=nil{
+		_,err:=sub.Redis.IncreaseInt(consumer_group,1)
+		if err!=nil{
+			return err
+		}		
+	}
+	if str_num_pod==""{
+		return e.New("NUM_POD for consumer is required","KAFKA","CONSUMER")
+	}
+	num_pod:=utils.StringToInt(str_num_pod)
+	i_current_num_pod,err:=sub.Redis.Get(consumer_group)
+	if err!=nil{
+		i_current_num_pod="0"
+	}
+	current_num_pod:=utils.ItoInt(i_current_num_pod)
+	for current_num_pod<num_pod{
+		time.Sleep(3 * time.Second)
+		fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
+		i_current_num_pod,_=sub.Redis.Get(consumer_group)
+		current_num_pod=utils.ItoInt(i_current_num_pod)
+	}
+	//all pod ready
 	for i := 0; i < sub.num_consumer; i++ {
 		//config
 		conf := NewConsumerConfig(sub.config)
@@ -360,43 +367,6 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 		if err != nil {
 			log.Error(err.Msg(), "Consumer", "ProcessMesasge", event)
 		}
-		//
-		//delete UID from cache server(Redis) after consume and
-		//before process for sure if any error when process message, still can delete from redis
-		//
-		if event.Uid != "" && !sub.no_cache && sub.Redis != nil {
-			res, err := sub.Redis.Exists(event.Uid)
-			if err != nil {
-				event.IgnoreUid = true
-				log.Warn(err.Msg(), "ConsumeMessage", "CheckRedisExistKey", event)
-				//=> push to kafka, wait for worker recheck & delete
-				if sub.RetryDeleteRedisFn != nil {
-					sub.RetryDeleteRedisFn(event)
-				}
-				//sleep wait for worker delete redis first??? => item still have time for process so temp do not do any more
-
-			} else if res { //exist key
-				log.Info("Exists Redis Key: "+event.Uid, "ConsumeMessage", "CheckRedisExistKeyBeforeDelete", event)
-				err := sub.DeleteUniqueKey(event)
-				if err != nil {
-					//set kafka item fail
-					event.IgnoreUid = true
-					//=>push to Kafka, wait for worker delete
-					if sub.RetryDeleteRedisFn != nil {
-						sub.RetryDeleteRedisFn(event)
-					}
-					//sleep wait for worker delete redis first??? => item still have time for process so temp do not do any more
-
-					//
-					log.Warn(err.Msg(), "ConsumeMessage", "RedisDeleteUniqueKey", event)
-				} else {
-					log.Info("Delete redis key is success", "ConsumeMessage", "RedisDeleteUniqueKey", event)
-				}
-			} else {
-				log.Warn("Redis key not exist:"+event.Uid, "ConsumeMessage", "RedisDeleteUniqueKeyNotExisit", event)
-			}
-		}
-		// ignore message if reprocess
 
 		//process message
 		consumed_log := true
@@ -450,23 +420,9 @@ func (sub *Subscriber) SetNoAck(no_ack bool) {
 func (sub *Subscriber) SetNoInject(no_inject bool) {
 	sub.no_inject = no_inject
 }
-func (sub *Subscriber) SetNoCache(no_cache bool) {
-	sub.no_cache = no_cache
-}
+
 func (sub *Subscriber) SetPushlisher(fn event.RePushFn) {
 	sub.RePushEventFn = fn
-}
-func (sub *Subscriber) SetPushlisherForRetryDeleteRedis(fn event.RetryDeleteRedisPushFn) {
-	sub.RetryDeleteRedisFn = fn
-}
-func (sub *Subscriber) DeleteUniqueKey(event ev.Event) *e.Error {
-	if event.Uid != "" {
-		err := sub.Redis.Del(event.Uid)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 func (sub *Subscriber) Clean() {
 	sub.Redis.Close()

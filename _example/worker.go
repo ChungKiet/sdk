@@ -19,8 +19,6 @@ func main(){
 	//
 	var w Worker
 	//default worker don't initial publihser, if you want initial, set by bellow command
-	w.SetNoCheckDuplicate(true)
-	w.SetUnRetryDeleteUid(true)
 	w.SetNoInitSubscriberLog(true)
 	w.SetNoInitSubscriberLog(true)
 	//no database

@@ -8,7 +8,7 @@ import (
 	ev "github.com/goonma/sdk/base/event"
 	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
-	"github.com/goonma/sdk/log"
+	//"github.com/goonma/sdk/log"
 	"github.com/goonma/sdk/pubsub/kafka"
 
 	//"github.com/ThreeDotsLabs/watermill/message"
@@ -24,7 +24,6 @@ type EventDriven struct {
 	publisher            kafka.Publisher
 	subscriber           kafka.Subscriber
 	redis                r.CacheHelper
-	check_duplicate      bool
 	un_set_pushlish_time bool
 }
 
@@ -36,14 +35,6 @@ func (ev *EventDriven) InitialPublisher(vault *vault.Vault, config_path string, 
 		return err
 	}
 	//
-	//initial cache(redis)
-	if ev.check_duplicate {
-		var errc *e.Error
-		ev.redis, errc = r.NewCacheHelper(vault)
-		if errc != nil {
-			return errc
-		}
-	}
 	//
 	return nil
 }
@@ -83,29 +74,13 @@ func (ev *EventDriven) SetNoEvent(v bool) {
 func (ev *EventDriven) SetNoUpdatePublishTime(v bool) {
 	ev.un_set_pushlish_time = v
 }
-func (ev *EventDriven) SetNoValidUID(v bool) {
-	ev.subscriber.SetNoCache(v)
-}
+
 func (ev *EventDriven) SetPublisherForSubscriber() {
 	ev.subscriber.SetPushlisher(ev.Publish)
-}
-func (ev *EventDriven) SetPushlisherForRetryDeleteRedis(fn event.RetryDeleteRedisPushFn) {
-	ev.subscriber.SetPushlisherForRetryDeleteRedis(fn)
 }
 
 // publish event to BUS
 func (ev *EventDriven) Publish(event ev.Event) *e.Error {
-	if event.Uid != "" && ev.check_duplicate && ev.redis != nil { //if enable redis for check unique index
-		res, err := ev.redis.Exists(event.Uid)
-		if err != nil {
-			log.Error(err.Msg(), "Publisher", "Redis-Check-Exist", event)
-		} else {
-			if res { //ignore duplicate item
-				log.Warn("Duplicate item", "Publiser", "Redis", event)
-				return nil
-			}
-		}
-	}
 	event.EventID = uuid.New()
 	if !ev.un_set_pushlish_time {
 		event.PushlishTime = time.Now()
@@ -131,9 +106,6 @@ func (ev *EventDriven) Subscribe() *e.Error {
 		return err
 	}
 	return nil
-}
-func (ev *EventDriven) SetCheckDuplicate(check bool) {
-	ev.check_duplicate = check
 }
 func (ev *EventDriven) Clean() {
 	//if ev.subscriber!=nil{

@@ -39,22 +39,13 @@ type Worker struct {
 	Mgo db.MongoDB
 	//log publisher
 	log_pub ed.EventDriven
-	//retry delete Uid in redis publisher
-	redis_pub ed.EventDriven
-
 	//redis
 	Rd r.CacheHelper
 	//micro client
 	Client map[string]*micro.MicroClient
 	//default init subscriber log for push item processs success to kafka_item_sucess
 	uninit_subscriber_log bool
-	//detaul don't retry delete uid in DB(redis)
-	// retry mean when access DB(redis) error, item will be push to kafka topic for other worker continue retry delete
-	uninit_retry_delete_uid bool
-	//consumer: defaul delete redis key after consumer consumed item, for next repush item can be processed
-	//publisher: default check redis before push to main_bus
-	uninit_check_uid bool
-
+	//detaul init redis cache
 	init_redis bool
 }
 
@@ -98,31 +89,6 @@ func (w *Worker) Initial(worker_name string, callbackfn event.ConsumeFn, args ..
 			log.ErrorF(err_r.Msg())
 		}
 		w.Rd = redis
-	}
-	//default alway retry delete uid in DB(redis), this will push item to kafka topic for other worker retry
-	if !w.uninit_retry_delete_uid {
-		fmt.Println("===Init PushRetryDeleteRedis===")
-		//
-		w.InitRetryDeleteFailUIDRedisPublisher()
-		//invoke publisher redis to subscriber
-		w.Sub.SetPushlisherForRetryDeleteRedis(w.PushRetryDeleteRedis)
-
-	} else {
-		fmt.Println("===Disable PushRetryDeleteRedis===")
-	}
-	//default alway init check Uid in DB(redis)
-	if !w.uninit_check_uid {
-		// this set for Publisher check Uid in DB(Redis )before push to main_bus need to check Uid
-		fmt.Println("===Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Sub.SetCheckDuplicate(true)
-		fmt.Println("===Init delete Uid in Db(Redis) after consumed item ===")
-		//this set for Subscriber delete Uid in DB(Redis) after consumed
-		w.Sub.SetNoValidUID(false)
-	} else {
-		fmt.Println("===Disable Init check Uid in Db(Redis) before Push item to topic ===")
-		w.Sub.SetCheckDuplicate(false)
-		fmt.Println("===Disable Init delete Uid in Db(Redis) after consumed item ===")
-		w.Sub.SetNoValidUID(true)
 	}
 	//
 	//initial Event subscriber
@@ -224,30 +190,8 @@ func (w *Worker) SetNoInitSubscriberLog(i bool) {
 	w.uninit_subscriber_log = i
 }
 
-// no need to call if want to check, default check duplicate item in redis before push data
-// - for publisher check Uid in Redis before push
-// - for consumer delete Uid in Redis after consume
-func (w *Worker) SetNoCheckDuplicate(i bool) {
-	w.uninit_check_uid = i
-}
-
-// default if can not access to DB(Redis) contains Uid for delete, will repush item to kafka topic for other worker can continue delete
-func (w *Worker) SetUnRetryDeleteUid(i bool) {
-	w.uninit_retry_delete_uid = i
-}
-
 func (w *Worker) SetInitRedis(i bool) {
 	w.init_redis = i
-}
-
-// default set publish time
-func (w *Worker) InitRetryDeleteFailUIDRedisPublisher() {
-	//initial publisher for streaming consumed Item to DB for easy tracking
-	err := w.redis_pub.InitialPublisher(w.config, "cache/pub/kafka", w.worker_name, "Consummer retry delete Uid Redis")
-	if err != nil {
-		log.ErrorF(err.Msg(), err.Group(), err.Key())
-	}
-	//
 }
 
 // start consumers
@@ -260,13 +204,6 @@ func (w *Worker) Start() {
 
 func (w *Worker) LogEvent(e ev.Event) error {
 	err := w.log_pub.Publish(e)
-	if err != nil {
-		log.Error(err.Msg(), err.Group(), err.Key(), e)
-	}
-	return nil
-}
-func (w *Worker) PushRetryDeleteRedis(e ev.Event) error {
-	err := w.redis_pub.Publish(e)
 	if err != nil {
 		log.Error(err.Msg(), err.Group(), err.Key(), e)
 	}
