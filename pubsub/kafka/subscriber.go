@@ -197,7 +197,7 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	var err error
 	brokers := utils.Explode(brokers_str, ",")
 	conf := NewConsumerConfig(config_map)
-	conf.Consumer.Offsets.Initial = sarama.OffsetOldest
+	conf.Consumer.Offsets.Initial = sarama.OffsetNewest
 	//sarama.OffsetOldest get from last offset not yet commit
 	//sarama.OffsetNewest  ignore all mesage just get new message after consumer start
 	sub.subscriber, err = kafka.NewSubscriber(
@@ -236,14 +236,6 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-
-	fmt.Println("=>No inject: ", sub.no_inject)
-	if sub.logConsumeFn == nil {
-		fmt.Println("=>Log consumedFn: True")
-	} else {
-		fmt.Println("=>Log consumedFn: False")
-	}
-
 
 	return nil
 }

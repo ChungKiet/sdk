@@ -123,7 +123,6 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 				if err_s != nil {
 					log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 				}
-				w.Sub[event].SetNoValidUID(true)
 			}
 		}
 	}
@@ -142,7 +141,6 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 				if err != nil {
 					log.ErrorF(err.Msg(), service_name, "Initial")
 				}
-				w.Pub[event].SetNoValidUID(true)
 			}
 		}
 
