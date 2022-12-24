@@ -230,6 +230,11 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("===========Ignore Initiation Processed Item Log======")
 	}
+	var errc *e.Error
+	sub.Redis,errc=redis.NewCacheHelper(vault)
+	if errc!=nil{
+		return errc
+	}
 	fmt.Println("=>No inject: ", sub.no_inject)
 	if sub.logConsumeFn == nil {
 		fmt.Println("=>Log consumedFn: True")
