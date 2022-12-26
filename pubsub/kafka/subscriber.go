@@ -260,29 +260,29 @@ func (sub *Subscriber) Consume() *e.Error {
 	consumer_group := sub.config["CONSUMER_GROUP"]
 	//wait for other pod
 	str_num_pod:=sub.config["NUM_POD"]
-	//pod start success => increase number of pod
-	_,err:=sub.Redis.IncreaseInt(consumer_group,1)
-	if err!=nil{
+	if str_num_pod!=""{
+		//pod start success => increase number of pod
 		_,err:=sub.Redis.IncreaseInt(consumer_group,1)
 		if err!=nil{
-			return err
-		}		
+			_,err:=sub.Redis.IncreaseInt(consumer_group,1)
+			if err!=nil{
+				return err
+			}		
+		}
+		num_pod:=utils.StringToInt(str_num_pod)
+		i_current_num_pod,err:=sub.Redis.Get(consumer_group)
+		if err!=nil{
+			i_current_num_pod="0"
+		}
+		current_num_pod:=utils.ItoInt(i_current_num_pod)
+		for current_num_pod<num_pod{
+			time.Sleep(3 * time.Second)
+			fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
+			i_current_num_pod,_=sub.Redis.Get(consumer_group)
+			current_num_pod=utils.ItoInt(i_current_num_pod)
+		}
 	}
-	if str_num_pod==""{
-		return e.New("NUM_POD for consumer is required","KAFKA","CONSUMER")
-	}
-	num_pod:=utils.StringToInt(str_num_pod)
-	i_current_num_pod,err:=sub.Redis.Get(consumer_group)
-	if err!=nil{
-		i_current_num_pod="0"
-	}
-	current_num_pod:=utils.ItoInt(i_current_num_pod)
-	for current_num_pod<num_pod{
-		time.Sleep(3 * time.Second)
-		fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
-		i_current_num_pod,_=sub.Redis.Get(consumer_group)
-		current_num_pod=utils.ItoInt(i_current_num_pod)
-	}
+	
 	//all pod ready
 	for i := 0; i < sub.num_consumer; i++ {
 		//config
