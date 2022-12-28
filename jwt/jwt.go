@@ -3,6 +3,7 @@ import(
 	"github.com/golang-jwt/jwt/v4"
 	"time"
 	"fmt"
+	"errors"
 )
 
 type CustomClaims struct {
@@ -37,6 +38,12 @@ func GenerateJWTToken(key_sign,user_id,username,email,ttype string, role_id,expi
 	return res,nil
 }
 func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
+	if key==""{
+		return nil,errors.New("_KEY_IS_EMPTY_")
+	}
+	if token_string==""{
+		return nil,errors.New("_TOKEN_IS_EMPTY_")
+	}
 	token, err := jwt.ParseWithClaims(token_string, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])

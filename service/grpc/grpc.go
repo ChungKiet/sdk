@@ -213,6 +213,9 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 	if err != nil {
 		return nil, err
 	}
+	if token==""{
+		return nil,errors.New("_TOKEN_IS_EMPTY_")
+	}
 	claims, err_v := jwt.VerifyJWTToken(grpcSRV.token_Key,token)
 	if err_v != nil {
 		return nil, err_v

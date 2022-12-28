@@ -270,17 +270,20 @@ func (sub *Subscriber) Consume() *e.Error {
 			}		
 		}
 		num_pod:=utils.StringToInt(str_num_pod)
-		i_current_num_pod,err:=sub.Redis.Get(consumer_group)
-		if err!=nil{
-			i_current_num_pod="0"
+		if num_pod>0{
+			i_current_num_pod,err:=sub.Redis.Get(consumer_group)
+			if err!=nil{
+				i_current_num_pod="0"
+			}
+			current_num_pod:=utils.ItoInt(i_current_num_pod)
+			for current_num_pod<num_pod{
+				time.Sleep(3 * time.Second)
+				fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
+				i_current_num_pod,_=sub.Redis.Get(consumer_group)
+				current_num_pod=utils.ItoInt(i_current_num_pod)
+			}
 		}
-		current_num_pod:=utils.ItoInt(i_current_num_pod)
-		for current_num_pod<num_pod{
-			time.Sleep(3 * time.Second)
-			fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
-			i_current_num_pod,_=sub.Redis.Get(consumer_group)
-			current_num_pod=utils.ItoInt(i_current_num_pod)
-		}
+		
 	}
 	
 	//all pod ready
