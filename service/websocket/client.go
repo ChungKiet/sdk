@@ -70,6 +70,7 @@ func (c *Client) ReadPump() {
 	for {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
+			log.Error(err.Error(), "Websocket Read Pump")
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Error(err.Error(), "Websocket Read Pump")
 			}
