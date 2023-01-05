@@ -120,6 +120,7 @@ func (c *Client) WritePump() {
 		case <-ticker.C:
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Error(err.Error(), "Websocket ping error")
 				return
 			}
 		}
