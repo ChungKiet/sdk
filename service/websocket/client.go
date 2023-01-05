@@ -1,9 +1,9 @@
 package websocket
 
 import (
-	"log"
 	"time"
 
+	"github.com/goonma/sdk/log"
 	"github.com/gorilla/websocket"
 )
 
@@ -71,7 +71,7 @@ func (c *Client) ReadPump() {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				log.Error(err.Error(), "Websocket Read Pump")
 			}
 			break
 		}
@@ -101,6 +101,7 @@ func (c *Client) WritePump() {
 
 			w, err := c.Conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				log.Error(err.Error(), "Websocket Write Pump")
 				return
 			}
 			w.Write(message)
