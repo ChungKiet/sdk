@@ -90,6 +90,10 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		SigningMethod: jwt.SigningMethodHS256.Name,
 		TokenLookup:   "query:token",
 		AuthScheme:    "Bearer",
+		Skipper: func(c echo.Context) bool {
+			token := c.QueryParam("token")
+			return token == ""
+		},
 		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
 			if os.Getenv("IGNORE_TOKEN") == "true" {
 				return nil, nil
