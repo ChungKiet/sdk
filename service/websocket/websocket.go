@@ -19,6 +19,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"os/signal"
+	"time"
+	"context"
 )
 
 type Websocket struct {
@@ -168,11 +171,6 @@ func (w *Websocket) Start() {
 	fmt.Printf("HTTP Server start at: %s:%s\n", w.host, w.port)
 	go w.Hub.run()
 	// Start server
-	go func() {
-		if err := w.Srv.Start(":" + w.port); err != nil && err != http.ErrServerClosed {
-			w.Srv.Logger.Fatal("shutting down the server")
-		}
-	}()
 	for _, sub := range w.Sub {
 		go func(sub *ed.EventDriven) {
 			if err := sub.Subscribe(); err != nil {
@@ -180,6 +178,20 @@ func (w *Websocket) Start() {
 			}
 		}(sub)
 
+	}
+	go func() {
+		if err := w.Srv.Start(":" + w.port); err != nil && err != http.ErrServerClosed {
+			w.Srv.Logger.Fatal("shutting down the server")
+		}
+	}()
+	//gracefull shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := w.Srv.Shutdown(ctx); err != nil {
+		w.Srv.Logger.Fatal(err)
 	}
 }
 

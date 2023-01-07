@@ -9,8 +9,8 @@ import (
 	"errors"
 	//"fmt"
 )
-func RSA_Generate_KEY() (string,string,error){
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+func RSA_Generate_KEY(size int) (string,string,error){
+	privateKey, err := rsa.GenerateKey(rand.Reader, size)
 	if err!=nil{
 		return "","",err
 	}

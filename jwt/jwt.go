@@ -37,6 +37,27 @@ func GenerateJWTToken(key_sign,user_id,username,email,ttype string, role_id,expi
 	}
 	return res,nil
 }
+//return 
+// - int: number of second token expired , 0 if not expired
+
+func TokenExpiredTime(key,token_string string) float64{
+	var claims CustomClaims
+	_, err := jwt.ParseWithClaims(token_string, &claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(key), nil
+	})
+	if err==nil{
+		return 0
+	}
+	v, _ := err.(*jwt.ValidationError)
+	if v.Errors == jwt.ValidationErrorExpired{
+		//tm := time.Unix(claims.ExpiresAt, 0)
+		return time.Now().Sub(claims.ExpiresAt.Time).Seconds()
+	}
+	return 0
+}
 func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
 	if key==""{
 		return nil,errors.New("_KEY_IS_EMPTY_")
