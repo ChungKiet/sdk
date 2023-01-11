@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/golang-jwt/jwt/v4"
+	//"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	e "github.com/goonma/sdk/base/error"
 	"github.com/goonma/sdk/base/event"
 	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
 	ed "github.com/goonma/sdk/eventdriven"
-	j "github.com/goonma/sdk/jwt"
+	//j "github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/log"
 	"github.com/goonma/sdk/service/micro"
 	"github.com/goonma/sdk/utils"
@@ -83,7 +83,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	w.Srv.Use(middleware.Logger())
 	w.Srv.Use(middleware.Recover())
 	w.Srv.GET("/ws", wsHandleFunc)
-
+	/*
 	config_jwt := middleware.JWTConfig{
 		Claims:        &j.CustomClaims{},
 		SigningKey:    []byte(w.key),
@@ -106,7 +106,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		},
 	}
 	w.Srv.Use(middleware.JWTWithConfig(config_jwt))
-
+	*/
 	// Init redis
 	redis, err_r := r.NewCacheHelper(w.config)
 	if err_r != nil {
@@ -133,7 +133,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 			}
 		}
 	}
-
+	/*
 	check, err_p = w.config.CheckPathExist("websocket/" + service_name + "/pub/kafka")
 	if err_p != nil {
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
@@ -152,7 +152,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		}
 
 	}
-
+	*/
 	//micro client call service
 	if len(args) > 0 {
 		if args[0] != nil {
