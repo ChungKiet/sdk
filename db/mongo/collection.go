@@ -205,6 +205,7 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 
 	// apply transaction
 	results, txnErr := session.WithTransaction(context.TODO(), handler, txnOpts)
+	fmt.Printf("Txn Error: %+v",txnErr)
 	if txnErr != nil {
 		return &status.DBResponse{
 			Status:    status.DBStatus.Error,
