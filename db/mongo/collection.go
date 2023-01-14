@@ -228,6 +228,9 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
     if txnErr!=nil && num_retry>1{
 		for i:=1;i<num_retry;i++{
 			results, txnErr= session.WithTransaction(context.TODO(), handler, txnOpts)
+			if txnErr==nil{
+				break
+			}
 			log.Warn(txnErr.Error()+" | retry","DBTransactionError")
 			time.Sleep(time.Duration(sleep_time) * time.Millisecond)
 		}
