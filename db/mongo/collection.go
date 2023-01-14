@@ -9,7 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"reflect"
+	//"github.com/goonma/sdk/log"
 	"fmt"
 )
 
@@ -191,10 +193,10 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 			isolation.Write = defaultIsolation.Write
 		}
 	}
-	txnOpts := options.Transaction().SetWriteConcern(isolation.Write).SetReadConcern(isolation.Read)
-
+	txnOpts:= options.Transaction().SetWriteConcern(isolation.Write).SetReadConcern(isolation.Read)
+	sessionOpts:=options.Session().SetDefaultReadPreference(readpref.Primary())
 	// start session
-	session, err := m.db.Client().StartSession()
+	session, err := m.db.Client().StartSession(sessionOpts)
 	if err != nil {
 		return &status.DBResponse{
 			Status:    status.DBStatus.Error,
@@ -206,7 +208,14 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 
 	// apply transaction
 	results, txnErr := session.WithTransaction(context.TODO(), handler, txnOpts)
-	fmt.Printf("Txn Error: %+v",txnErr)
+	//
+	cmdErr, ok := txnErr.(mongo.CommandError)
+	if ok{
+		fmt.Printf("%+v",cmdErr)
+	}else{
+		fmt.Println("can not convert error to Mongo Erorr")
+	}
+	
 	if txnErr != nil {
 		return &status.DBResponse{
 			Status:    status.DBStatus.Error,
