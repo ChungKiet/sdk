@@ -58,9 +58,9 @@ func (ev *EventDriven) InitialSubscriber(vault *vault.Vault, config_path string,
 	return nil
 }
 
-func (ev *EventDriven) InitialSubscriberWithGlobal(vault *vault.Vault, config_path string, service_id string, callbackfn event.ConsumeFn, logConsume event.WriteLogConsumeFn, args ...interface{}) *e.Error {
+func (ev *EventDriven) InitialSubscriberWithGlobal(vault *vault.Vault, config_path string, service_id string, callbackfn event.ConsumeFn, logConsume event.WriteLogConsumeFn, replaceTopic string, args ...interface{}) *e.Error {
 	ev.id = service_id
-	err := ev.subscriber.InitialWithGlobal(vault, config_path, ev.id, callbackfn, logConsume)
+	err := ev.subscriber.InitialWithGlobal(vault, config_path, ev.id, callbackfn, logConsume, replaceTopic)
 	if err != nil {
 		return err
 	}

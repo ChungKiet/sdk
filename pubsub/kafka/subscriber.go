@@ -31,16 +31,16 @@ import (
 
 // type ConsumeFn = func(messages <-chan *message.Message)
 type Subscriber struct {
-	id                 string
-	subscriber         *kafka.Subscriber
-	topic              string
-	ProcessFn          event.ConsumeFn
-	RePushEventFn      event.RePushFn
-	Redis              redis.CacheHelper
-	logConsumeFn       event.WriteLogConsumeFn
-	num_consumer       int
-	no_ack             bool
-	no_inject          bool
+	id            string
+	subscriber    *kafka.Subscriber
+	topic         string
+	ProcessFn     event.ConsumeFn
+	RePushEventFn event.RePushFn
+	Redis         redis.CacheHelper
+	logConsumeFn  event.WriteLogConsumeFn
+	num_consumer  int
+	no_ack        bool
+	no_inject     bool
 	//
 	config map[string]string
 }
@@ -131,8 +131,8 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	//	fmt.Println("===========Initiation Redis for delete Uid: True======")
 	fmt.Println("===========Initiation Redis for check other pod ready======")
 	var errc *e.Error
-	sub.Redis,errc=redis.NewCacheHelper(vault)
-	if errc!=nil{
+	sub.Redis, errc = redis.NewCacheHelper(vault)
+	if errc != nil {
 		return errc
 	}
 	fmt.Println("=>No inject: ", sub.no_inject)
@@ -142,11 +142,10 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 		fmt.Println("=>Log consumedFn: False")
 	}
 
-		 
 	return nil
 }
 
-func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string, worker_name string, callbackfn event.ConsumeFn, logConsume event.WriteLogConsumeFn) *e.Error {
+func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string, worker_name string, callbackfn event.ConsumeFn, logConsume event.WriteLogConsumeFn, replaceTopic string) *e.Error {
 	log.Info("Initialing Kafka subscriber...", "KAFKA")
 	if config_path == "" {
 		return e.New("Vault config path for Kafka is empty", "KAFKA", "PUBLISHER")
@@ -178,7 +177,12 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	config_map["CONSUMER_GROUP"] = consumer_group
 	sub.config = config_map
 	brokers_str := config_map["BROKERS"]
-	topic := config_map["TOPIC"]
+	topic := ""
+	if replaceTopic == "" {
+		topic = config_map["TOPIC"]
+	} else {
+		topic = replaceTopic
+	}
 	num_consumer := utils.ItoInt(config_map["NUM_CONSUMER"])
 	if num_consumer == math.MinInt32 {
 		return e.New("Event Bus Number of Consumer must be number", "KAFKA", "CONSUMER")
@@ -231,8 +235,8 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 		fmt.Println("===========Ignore Initiation Processed Item Log======")
 	}
 	var errc *e.Error
-	sub.Redis,errc=redis.NewCacheHelper(vault)
-	if errc!=nil{
+	sub.Redis, errc = redis.NewCacheHelper(vault)
+	if errc != nil {
 		return errc
 	}
 	fmt.Println("=>No inject: ", sub.no_inject)
@@ -259,33 +263,33 @@ func (sub *Subscriber) Consume() *e.Error {
 	brokers := utils.Explode(brokers_str, ",")
 	consumer_group := sub.config["CONSUMER_GROUP"]
 	//wait for other pod
-	str_num_pod:=sub.config["NUM_POD"]
-	if str_num_pod!=""{
+	str_num_pod := sub.config["NUM_POD"]
+	if str_num_pod != "" {
 		//pod start success => increase number of pod
-		_,err:=sub.Redis.IncreaseInt(consumer_group,1)
-		if err!=nil{
-			_,err:=sub.Redis.IncreaseInt(consumer_group,1)
-			if err!=nil{
+		_, err := sub.Redis.IncreaseInt(consumer_group, 1)
+		if err != nil {
+			_, err := sub.Redis.IncreaseInt(consumer_group, 1)
+			if err != nil {
 				return err
-			}		
-		}
-		num_pod:=utils.StringToInt(str_num_pod)
-		if num_pod>0{
-			i_current_num_pod,err:=sub.Redis.Get(consumer_group)
-			if err!=nil{
-				i_current_num_pod="0"
 			}
-			current_num_pod:=utils.ItoInt(i_current_num_pod)
-			for current_num_pod<num_pod{
+		}
+		num_pod := utils.StringToInt(str_num_pod)
+		if num_pod > 0 {
+			i_current_num_pod, err := sub.Redis.Get(consumer_group)
+			if err != nil {
+				i_current_num_pod = "0"
+			}
+			current_num_pod := utils.ItoInt(i_current_num_pod)
+			for current_num_pod < num_pod {
 				time.Sleep(3 * time.Second)
-				fmt.Println("Wait for other pod: ",current_num_pod,"/",num_pod)
-				i_current_num_pod,_=sub.Redis.Get(consumer_group)
-				current_num_pod=utils.ItoInt(i_current_num_pod)
+				fmt.Println("Wait for other pod: ", current_num_pod, "/", num_pod)
+				i_current_num_pod, _ = sub.Redis.Get(consumer_group)
+				current_num_pod = utils.ItoInt(i_current_num_pod)
 			}
 		}
-		
+
 	}
-	
+
 	//all pod ready
 	for i := 0; i < sub.num_consumer; i++ {
 		//config
