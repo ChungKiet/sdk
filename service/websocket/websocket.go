@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
+	"context"
 	//"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	e "github.com/goonma/sdk/base/error"
@@ -21,7 +23,6 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"os/signal"
 	"time"
-	"context"
 )
 
 type Websocket struct {
@@ -84,28 +85,28 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	w.Srv.Use(middleware.Recover())
 	w.Srv.GET("/ws", wsHandleFunc)
 	/*
-	config_jwt := middleware.JWTConfig{
-		Claims:        &j.CustomClaims{},
-		SigningKey:    []byte(w.key),
-		SigningMethod: jwt.SigningMethodHS256.Name,
-		TokenLookup:   "query:token",
-		AuthScheme:    "Bearer",
-		Skipper: func(c echo.Context) bool {
-			token := c.QueryParam("token")
-			return token == ""
-		},
-		ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
-			if os.Getenv("IGNORE_TOKEN") == "true" {
-				return nil, nil
-			}
-			claims_info, err := j.VerifyJWTToken(w.key, token)
-			if err != nil {
-				return nil, err
-			}
-			return claims_info, nil
-		},
-	}
-	w.Srv.Use(middleware.JWTWithConfig(config_jwt))
+		config_jwt := middleware.JWTConfig{
+			Claims:        &j.CustomClaims{},
+			SigningKey:    []byte(w.key),
+			SigningMethod: jwt.SigningMethodHS256.Name,
+			TokenLookup:   "query:token",
+			AuthScheme:    "Bearer",
+			Skipper: func(c echo.Context) bool {
+				token := c.QueryParam("token")
+				return token == ""
+			},
+			ParseTokenFunc: func(token string, c echo.Context) (interface{}, error) {
+				if os.Getenv("IGNORE_TOKEN") == "true" {
+					return nil, nil
+				}
+				claims_info, err := j.VerifyJWTToken(w.key, token)
+				if err != nil {
+					return nil, err
+				}
+				return claims_info, nil
+			},
+		}
+		w.Srv.Use(middleware.JWTWithConfig(config_jwt))
 	*/
 	// Init redis
 	redis, err_r := r.NewCacheHelper(w.config)
@@ -125,15 +126,28 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		event_list := w.config.ListItemByPath("websocket/" + service_name + "/sub/kafka")
 		for _, event := range event_list {
 			if callback, ok := mapSubCallbackfn[event]; ok {
-				w.Sub[event] = &ed.EventDriven{}
-				err_s = w.Sub[event].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", event), service_name, callback, nil)
-				if err_s != nil {
-					log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+				isMultiTopic := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/MULTI_TOPIC")
+				if isMultiTopic == "true" {
+					subEvents := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/TOPIC")
+					eventList := strings.Split(subEvents, ",")
+					for _, subEvent := range eventList {
+						w.Sub[subEvent] = &ed.EventDriven{}
+						err_s = w.Sub[subEvent].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", subEvent), service_name, callback, nil, subEvent)
+						if err_s != nil {
+							log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+						}
+					}
+				} else {
+					w.Sub[event] = &ed.EventDriven{}
+					err_s = w.Sub[event].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", event), service_name, callback, nil, "")
+					if err_s != nil {
+						log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+					}
 				}
 			}
 		}
 	}
-	/*
+
 	check, err_p = w.config.CheckPathExist("websocket/" + service_name + "/pub/kafka")
 	if err_p != nil {
 		log.ErrorF(err_p.Msg(), w.config.GetServiceName())
@@ -152,7 +166,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		}
 
 	}
-	*/
+
 	//micro client call service
 	if len(args) > 0 {
 		if args[0] != nil {
