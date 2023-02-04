@@ -132,6 +132,7 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	fmt.Println("===========Initiation Redis for check other pod ready======")
 	var errc *e.Error
 	sub.Redis, errc = redis.NewCacheHelper(vault)
+
 	if errc != nil {
 		return errc
 	}
