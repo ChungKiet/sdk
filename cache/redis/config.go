@@ -23,10 +23,10 @@ func GetConfig(vault *vault.Vault,config_path string) map[string]string{
 		}
 	}
 	//
-	m["HOST"]=os.Getenv("HOST")
-	m["DB"]=os.Getenv("DB")
-	m["PASSWORD"]=os.Getenv("PASSWORD")
-	m["TYPE"]=os.Getenv("TYPE")
-	m["MASTER_NAME"]=os.Getenv("MASTER_NAME")
+	m["HOST"]=os.Getenv("REDIS_HOST")
+	m["DB"]=os.Getenv("REDIS_DB")
+	m["PASSWORD"]=os.Getenv("REDIS_PASSWORD")
+	m["TYPE"]=os.Getenv("REDIS_TYPE")
+	m["MASTER_NAME"]=os.Getenv("REDIS_MASTER_NAME")
 	return m
 }
