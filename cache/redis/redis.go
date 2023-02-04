@@ -41,6 +41,8 @@ func InitRedisSentinel(addr_arr_str, master_name,password string, db_index int)(
 	if len(addr_arr)==0{
 		return nil, e.New("Have no redis host", "REDIS", "INIT SENTINE REDIS")
 	}
+	fmt.Println("Redis sentinel host:",addr_arr)
+	fmt.Println("Redis sentinel mastername:",master_name)
 	redisdb := redis.NewFailoverClient(&redis.FailoverOptions{
 		MasterName:    master_name,
 		SentinelAddrs: addr_arr,
