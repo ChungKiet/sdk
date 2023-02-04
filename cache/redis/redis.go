@@ -9,12 +9,13 @@ import (
 	//"fmt"
 	redis "github.com/go-redis/redis"
 	e "github.com/goonma/sdk/base/error"
+	"github.com/goonma/sdk/utils"
 )
 
 type RedisHelper struct {
 	Client *redis.Client
 }
-
+//standalone
 func InitRedis(addr, password string, db_index int) (*redis.Client, *e.Error) {
 	rdbclient := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -33,6 +34,29 @@ func InitRedis(addr, password string, db_index int) (*redis.Client, *e.Error) {
 		return nil, e.New(err.Error(), "REDIS", "INIT REDIS")
 	}
 	return rdbclient, nil
+}
+//
+func InitRedisSentinel(addr_arr_str, master_name,password string, db_index int)(*redis.Client, *e.Error) {
+	addr_arr:=utils.Explode(addr_arr_str,",")
+	if len(addr_arr)==0{
+		return nil, e.New("Have no redis host", "REDIS", "INIT SENTINE REDIS")
+	}
+	redisdb := redis.NewFailoverClient(&redis.FailoverOptions{
+		MasterName:    master_name,
+		SentinelAddrs: addr_arr,
+		Password: password, // no password set
+		DB:       db_index, // use default DB
+		PoolSize: 1000,
+		IdleTimeout:  10 * time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleCheckFrequency: time.Second * 5,
+	})
+	_,err:=redisdb.Ping().Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "INIT SENTINE REDIS")
+	}
+	return redisdb, nil
 }
 func (h *RedisHelper) Close() *e.Error {
 	if h.Client!=nil{
