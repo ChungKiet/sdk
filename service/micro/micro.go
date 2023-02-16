@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	e "github.com/goonma/sdk/base/error"
 	"github.com/goonma/sdk/base/event"
+	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/goonma/sdk/db"
 	"github.com/goonma/sdk/db/mongo"
@@ -26,6 +27,8 @@ type Micro struct {
 	Config *vault.Vault
 	//db map[string]dbconnection
 	Mgo db.MongoDB
+	//redis
+	Rd r.CacheHelper
 	//publisher event
 	Pub map[string]*ed.EventDriven
 	//micro client
@@ -33,6 +36,9 @@ type Micro struct {
 	//
 	two_FA_Key string
 	token_Key  string
+
+	//detaul init redis cache
+	init_redis bool
 }
 
 /*
@@ -119,7 +125,18 @@ func (micro *Micro) Initial(config *vault.Vault, args ...interface{}) {
 			}
 		}
 	}
+
+	//init redis
+	if micro.init_redis {
+		fmt.Println("===Init Redis===")
+		redis, err_r := r.NewCacheHelper(micro.Config)
+		if err_r != nil {
+			log.ErrorF(err_r.Msg())
+		}
+		micro.Rd = redis
+	}
 }
+
 func (micro *Micro) InitialMicroClient(remote_services map[string]string, initConnection bool) {
 	//
 	micro.Client = make(map[string]*MicroClient)
@@ -146,6 +163,11 @@ func (micro *Micro) InitialMicroClient(remote_services map[string]string, initCo
 	}
 	//
 }
+
+func (micro *Micro) SetInitRedis(i bool) {
+	micro.init_redis = i
+}
+
 func (micro *Micro) PushEvent(ev event.Event) *e.Error {
 	event := event.Event{
 		EventID:      uuid.New(),
