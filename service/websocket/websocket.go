@@ -41,7 +41,7 @@ type Websocket struct {
 	//micro client
 	Client map[string]*micro.MicroClient
 	// Redis
-	rd r.CacheHelper
+	Rd r.CacheHelper
 }
 
 func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) {
@@ -113,7 +113,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	if err_r != nil {
 		log.ErrorF(err_r.Msg())
 	}
-	w.rd = redis
+	w.Rd = redis
 
 	// init Subscriber
 	var err_s *e.Error
