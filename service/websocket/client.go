@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/goonma/sdk/log"
@@ -48,6 +49,7 @@ type Client struct {
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
+		ID:    uuid.New().String(),
 		Hub:   hub,
 		Rooms: make([]string, 0),
 		Conn:  conn,
