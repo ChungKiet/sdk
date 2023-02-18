@@ -52,14 +52,25 @@ func NewCacheHelper(vault *vault.Vault) (CacheHelper,*e.Error) {
 	}
 	//
 	if len(addrs) > 1 {
-		clusterClient, err := InitRedisCluster(addrs,password)
-		if err != nil {
-			return nil,err
+		if config["TYPE"]=="SENTINEL"{
+			client, err := InitRedisSentinel(addrs[0], config["MASTER_NAME"],password, db_index)
+			if err != nil {
+				return nil,err
+			}
+			log.Info(fmt.Sprintf("Redis Sentinel: %s %s",config["HOST"]," connected"))
+			return &RedisHelper{
+				Client: client,
+			},nil
+		}else{
+			clusterClient, err := InitRedisCluster(addrs,password)
+			if err != nil {
+				return nil,err
+			}
+			fmt.Sprintf("Redis sharding cluster: %s %s",config["HOST"]," connected")
+			return &ClusterRedisHelper{
+				Client: clusterClient,
+			},nil
 		}
-		fmt.Sprintf("Redis: %s %s",config["HOST"]," connected")
-		return &ClusterRedisHelper{
-			Client: clusterClient,
-		},nil
 	}
 	client, err := InitRedis(addrs[0], password, db_index)
 	if err != nil {

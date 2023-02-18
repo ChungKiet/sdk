@@ -14,7 +14,7 @@ import (
 type ClusterRedisHelper struct {
 	Client *redis.ClusterClient
 }
-
+//sharding
 func InitRedisCluster(addrs []string, password string) (*redis.ClusterClient, *e.Error) {
 	clusterClient := redis.NewClusterClient(&redis.ClusterOptions{
 		Addrs: addrs,

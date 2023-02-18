@@ -1,41 +1,70 @@
 package redis
 
 import (
-	//"context"
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
-	//"fmt"
-	redis "github.com/go-redis/redis"
+
 	e "github.com/goonma/sdk/base/error"
+	"github.com/goonma/sdk/utils"
+	redis "github.com/redis/go-redis/v9"
 )
 
 type RedisHelper struct {
 	Client *redis.Client
 }
 
+// standalone
 func InitRedis(addr, password string, db_index int) (*redis.Client, *e.Error) {
 	rdbclient := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password, // no password set
-		DB:       db_index, // use default DB
+		Addr:       addr,
+		Password:   password, // no password set
+		DB:         db_index, // use default DB
 		MaxRetries: 3,
 		//PoolTimeout:  2 * time.Minute,
 		PoolSize: 1000,
-		IdleTimeout:  10 * time.Minute,
+		//IdleTimeout:  10 * time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
-		IdleCheckFrequency: time.Second * 5,
+		//IdleCheckFrequency: time.Second * 5,
 	})
-	_, err := rdbclient.Ping().Result()
+	_, err := rdbclient.Ping(context.Background()).Result()
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "INIT REDIS")
 	}
 	return rdbclient, nil
 }
+
+func InitRedisSentinel(addr_arr_str, master_name, password string, db_index int) (*redis.Client, *e.Error) {
+	addr_arr := utils.Explode(addr_arr_str, ",")
+	if len(addr_arr) == 0 {
+		return nil, e.New("Have no redis host", "REDIS", "INIT SENTINE REDIS")
+	}
+	fmt.Println("Redis sentinel host:", addr_arr)
+	fmt.Println("Redis sentinel mastername:", master_name)
+	redisdb := redis.NewFailoverClient(&redis.FailoverOptions{
+		MasterName:       master_name,
+		SentinelAddrs:    addr_arr,
+		Password:         password, // no password set
+		SentinelPassword: password,
+		DB:               db_index, // use default DB
+		PoolSize:         1000,
+		//IdleTimeout:  10 * time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		//IdleCheckFrequency: time.Second * 5,
+	})
+	_, err := redisdb.Ping(context.Background()).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "INIT SENTINE REDIS")
+	}
+	return redisdb, nil
+}
 func (h *RedisHelper) Close() *e.Error {
-	if h.Client!=nil{
+	if h.Client != nil {
 		err := h.Client.Close()
 		if err != nil {
 			return e.New(err.Error(), "REDIS", "CLOSE REDIS")
@@ -44,67 +73,72 @@ func (h *RedisHelper) Close() *e.Error {
 	return nil
 }
 
-func (h *RedisHelper) Exists(key string) (bool,*e.Error) {
-	if h.Client==nil{
-		return false,e.New("Redis Client is null", "REDIS", "EXIST REDIS")
+func (h *RedisHelper) Exists(key string) (bool, *e.Error) {
+	if h.Client == nil {
+		return false, e.New("Redis Client is null", "REDIS", "EXIST REDIS")
 	}
-	indicator, err := h.Client.Exists(key).Result()
+	indicator, err := h.Client.Exists(context.Background(), key).Result()
 	if err != nil {
-		return false,e.New(err.Error(), "REDIS", "EXIST REDIS")
+		return false, e.New(err.Error(), "REDIS", "EXIST REDIS")
 	}
 	if indicator <= 0 {
-		return false,nil
+		return false, nil
 	}
-	return true,nil
+	return true, nil
 }
 
-func (h *RedisHelper) Get(key string) (interface{},*e.Error) {
-	if h.Client==nil{
-		return nil,e.New("Redis Client is null", "REDIS", "REDIS GET")
+func (h *RedisHelper) Get(key string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
-	data, err := h.Client.Get(key).Result()
+	data, err := h.Client.Get(context.Background(), key).Result()
 	if err != nil {
-		return nil,e.New(err.Error(), "REDIS", "GET_KEY")
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
 	}
 	var value interface{}
 	err = json.Unmarshal([]byte(data), &value)
 	if err != nil {
-		return nil,e.New(err.Error(), "REDIS", "GET_KEY")
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
 	}
-	return value,nil
+	return value, nil
 }
-//return new value of key after increase old value
-func (h *RedisHelper) IncreaseInt(key string,value int) (int,*e.Error) {
-	if h.Client==nil{
-		return 0,e.New("Redis Client is null", "REDIS", "REDIS GET")
+
+// return new value of key after increase old value
+func (h *RedisHelper) IncreaseInt(key string, value int) (int, *e.Error) {
+	if h.Client == nil {
+		return 0, e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
-	res:=0
+	res := 0
 	//
-	err := h.Client.Watch(func(tx *redis.Tx) error {
-		n, err := tx.Get(key).Int()
+	ctx := context.Background()
+	err := h.Client.Watch(ctx, func(tx *redis.Tx) error {
+		n, err := tx.Get(ctx, key).Int()
 		if err != nil && err != redis.Nil {
 			return err
 		}
-	
-		_, err = tx.Pipelined(func(pipe redis.Pipeliner) error {
-			res=n+value
-			pipe.Set(key, res,  time.Duration(300)* time.Second)
+
+		_, err = tx.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			res = n + value
+			pipe.Set(ctx, key, res, time.Duration(300)*time.Second)
 			return nil
 		})
 		return err
 	}, key)
 	//
 	if err != nil {
-		return 0,e.New(err.Error(), "REDIS", "IncreaseInt")
+		return 0, e.New(err.Error(), "REDIS", "IncreaseInt")
 	}
-	return res,nil
+	return res, nil
 }
 func (h *RedisHelper) GetInterface(key string, value interface{}) (interface{}, *e.Error) {
-	if h.Client==nil{
-		return nil,e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
 	}
-	data, err := h.Client.Get(key).Result()
+	data, err := h.Client.Get(context.Background(), key).Result()
 	if err != nil {
+		if err == redis.Nil {
+			return nil, e.New("not found", "REDIS", "GET INTERFACE REDIS")
+		}
 		return nil, e.New(err.Error(), "REDIS", "GET INTERFACE REDIS")
 	}
 
@@ -144,7 +178,7 @@ func (h *RedisHelper) GetInterface(key string, value interface{}) (interface{}, 
 }
 
 func (h *RedisHelper) Set(key string, value interface{}, expiration time.Duration) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Set")
 	}
 	data, err := json.Marshal(value)
@@ -152,7 +186,7 @@ func (h *RedisHelper) Set(key string, value interface{}, expiration time.Duratio
 		return e.New(err.Error(), "REDIS", "SET REDIS")
 	}
 
-	_, err = h.Client.Set(key, string(data), expiration).Result()
+	_, err = h.Client.Set(context.Background(), key, string(data), expiration).Result()
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "SET REDIS")
 	}
@@ -160,8 +194,8 @@ func (h *RedisHelper) Set(key string, value interface{}, expiration time.Duratio
 }
 
 func (h *RedisHelper) SetNX(key string, value interface{}, expiration time.Duration) (bool, *e.Error) {
-	if h.Client==nil{
-		return false,e.New("Redis Client is null", "REDIS", "REDIS SetNX")
+	if h.Client == nil {
+		return false, e.New("Redis Client is null", "REDIS", "REDIS SetNX")
 	}
 	var isSuccessful bool
 	data, err := json.Marshal(value)
@@ -169,7 +203,7 @@ func (h *RedisHelper) SetNX(key string, value interface{}, expiration time.Durat
 		return false, e.New(err.Error(), "REDIS", "SETNX REDIS")
 	}
 
-	isSuccessful, err = h.Client.SetNX(key, string(data), expiration).Result()
+	isSuccessful, err = h.Client.SetNX(context.Background(), key, string(data), expiration).Result()
 	if err != nil {
 		return false, e.New(err.Error(), "REDIS", "SETNX REDIS")
 	}
@@ -177,10 +211,10 @@ func (h *RedisHelper) SetNX(key string, value interface{}, expiration time.Durat
 }
 
 func (h *RedisHelper) Del(key string) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Del")
 	}
-	_, err := h.Client.Del(key).Result()
+	_, err := h.Client.Del(context.Background(), key).Result()
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "DEL REDIS")
 	}
@@ -188,10 +222,10 @@ func (h *RedisHelper) Del(key string) *e.Error {
 }
 
 func (h *RedisHelper) Expire(key string, expiration time.Duration) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Expire")
 	}
-	_, err := h.Client.Expire(key, expiration).Result()
+	_, err := h.Client.Expire(context.Background(), key, expiration).Result()
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "EXPIRE REDIS")
 	}
@@ -199,19 +233,19 @@ func (h *RedisHelper) Expire(key string, expiration time.Duration) *e.Error {
 }
 
 func (h *RedisHelper) DelMulti(keys ...string) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS DelMulti")
 	}
 	var err error
 	pipeline := h.Client.TxPipeline()
-	pipeline.Del(keys...)
-	_, err = pipeline.Exec()
+	pipeline.Del(context.Background(), keys...)
+	_, err = pipeline.Exec(context.Background())
 	return e.New(err.Error(), "REDIS", "DEL MULTIPLE REDIS")
 }
 
 func (h *RedisHelper) GetKeysByPattern(pattern string) ([]string, uint64, *e.Error) {
-	if h.Client==nil{
-		return nil,0,e.New("Redis Client is null", "REDIS", "REDIS GetKeysByPattern")
+	if h.Client == nil {
+		return nil, 0, e.New("Redis Client is null", "REDIS", "REDIS GetKeysByPattern")
 	}
 	var (
 		keys   []string
@@ -220,7 +254,7 @@ func (h *RedisHelper) GetKeysByPattern(pattern string) ([]string, uint64, *e.Err
 	)
 	for {
 		var temp_keys []string
-		temp_keys, cursor, err := h.Client.Scan(cursor, pattern, limit).Result()
+		temp_keys, cursor, err := h.Client.Scan(context.Background(), cursor, pattern, limit).Result()
 		if err != nil {
 			return nil, 0, e.New(err.Error(), "REDIS", "GET KEYS REDIS")
 		}
@@ -236,22 +270,21 @@ func (h *RedisHelper) GetKeysByPattern(pattern string) ([]string, uint64, *e.Err
 }
 
 func (h *RedisHelper) RenameKey(oldkey, newkey string) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS RenameKey")
 	}
 	var err error
-	_, err = h.Client.Rename(oldkey, newkey).Result()
+	_, err = h.Client.Rename(context.Background(), oldkey, newkey).Result()
 	return e.New(err.Error(), "REDIS", "RENAME KEY REDIS")
 }
 
 func (h *RedisHelper) GetType(key string) (string, *e.Error) {
-	if h.Client==nil{
-		return "",e.New("Redis Client is null", "REDIS", "REDIS GetType")
+	if h.Client == nil {
+		return "", e.New("Redis Client is null", "REDIS", "REDIS GetType")
 	}
-	typeK, err := h.Client.Type(key).Result()
+	typeK, err := h.Client.Type(context.Background(), key).Result()
 	if err != nil {
 		return "", e.New(err.Error(), "REDIS", "GET TYPE REDIS")
 	}
 	return typeK, nil
 }
-
