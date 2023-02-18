@@ -33,6 +33,8 @@ var Upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	ID string
+
 	Hub *Hub
 
 	Rooms []string
@@ -49,7 +51,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 		Hub:   hub,
 		Rooms: make([]string, 0),
 		Conn:  conn,
-		send:  make(chan []byte,256),
+		send:  make(chan []byte, 256),
 	}
 }
 
