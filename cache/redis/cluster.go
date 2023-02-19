@@ -2,9 +2,11 @@ package redis
 
 import (
 	//"context"
+	"context"
 	"encoding/json"
 	"reflect"
 	"time"
+
 	//"fmt"
 	//"errors"
 	redis "github.com/go-redis/redis"
@@ -14,83 +16,140 @@ import (
 type ClusterRedisHelper struct {
 	Client *redis.ClusterClient
 }
-//sharding
+
+// sharding
 func InitRedisCluster(addrs []string, password string) (*redis.ClusterClient, *e.Error) {
 	clusterClient := redis.NewClusterClient(&redis.ClusterOptions{
-		Addrs: addrs,
-		Password: password,
+		Addrs:      addrs,
+		Password:   password,
 		MaxRetries: 3,
 		//PoolTimeout:  2 * time.Minute,
-		PoolSize: 1000,
-		IdleTimeout:  10 * time.Minute,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		PoolSize:           1000,
+		IdleTimeout:        10 * time.Minute,
+		ReadTimeout:        10 * time.Second,
+		WriteTimeout:       10 * time.Second,
 		IdleCheckFrequency: time.Second * 5,
 	})
 	_, err := clusterClient.Ping().Result()
-	if err!=nil{
-		return nil,e.New(err.Error(), "REDIS", "INIT REDIS CLUSTER")
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "INIT REDIS CLUSTER")
 	}
-	return clusterClient,nil
+	return clusterClient, nil
 }
-func (h *ClusterRedisHelper) Exists(key string) (bool,*e.Error) {
-	if h.Client==nil{
-		return false,e.New("Redis Client is null", "REDIS", "REDIS Exists")
+func (h *ClusterRedisHelper) Exists(key string) (bool, *e.Error) {
+	if h.Client == nil {
+		return false, e.New("Redis Client is null", "REDIS", "REDIS Exists")
 	}
 	indicator, err := h.Client.Exists(key).Result()
 	if err != nil {
-		return false,e.New(err.Error(), "REDIS", "EXIST REDIS CLUSTER")
+		return false, e.New(err.Error(), "REDIS", "EXIST REDIS CLUSTER")
 	}
 	if indicator <= 0 {
-		return false,nil
+		return false, nil
 	}
-	return true,nil
+	return true, nil
 }
 
-func (h *ClusterRedisHelper) Get(key string) (interface{},*e.Error) {
-	if h.Client==nil{
-		return nil,e.New("Redis Client is null", "REDIS", "REDIS Get")
+func (h *ClusterRedisHelper) Get(key string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS Get")
 	}
 	data, err := h.Client.Get(key).Result()
 	if err != nil {
-		return nil,e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
+		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
 	}
 	var value interface{}
 	err = json.Unmarshal([]byte(data), &value)
 	if err != nil {
-		return nil,e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
+		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
 	}
-	return value,nil
+	return value, nil
 }
-//return new value of key after increase old value
-func (h *ClusterRedisHelper) IncreaseInt(key string,value int) (int,*e.Error) {
-	if h.Client==nil{
-		return 0,e.New("Redis Client is null", "REDIS", "REDIS GET")
+
+func (h *ClusterRedisHelper) GetWithContext(ctx context.Context, key string) (interface{}, *e.Error) {
+
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS Get")
 	}
-	res:=0
+	data, err := h.Client.Get(key).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
+	}
+	var value interface{}
+	err = json.Unmarshal([]byte(data), &value)
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
+	}
+	return value, nil
+}
+
+// return new value of key after increase old value
+func (h *ClusterRedisHelper) IncreaseInt(key string, value int) (int, *e.Error) {
+	if h.Client == nil {
+		return 0, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	res := 0
 	//
 	err := h.Client.Watch(func(tx *redis.Tx) error {
 		n, err := tx.Get(key).Int()
 		if err != nil && err != redis.Nil {
 			return err
 		}
-	
+
 		_, err = tx.Pipelined(func(pipe redis.Pipeliner) error {
-			res=n+value
-			pipe.Set(key, res, time.Duration(300)* time.Second)
+			res = n + value
+			pipe.Set(key, res, time.Duration(300)*time.Second)
 			return nil
 		})
 		return err
 	}, key)
 	//
 	if err != nil {
-		return 0,e.New(err.Error(), "REDIS", "IncreaseInt")
+		return 0, e.New(err.Error(), "REDIS", "IncreaseInt")
 	}
-	return res,nil
+	return res, nil
 }
+
 func (h *ClusterRedisHelper) GetInterface(key string, value interface{}) (interface{}, *e.Error) {
-	if h.Client==nil{
-		return nil,e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
+	}
+	var err error
+	data, err := h.Client.Get(key).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET INTERFACE REDIS CLUSTER")
+	}
+
+	typeValue := reflect.TypeOf(value)
+	kind := typeValue.Kind()
+
+	var outData interface{}
+	switch kind {
+	case reflect.Ptr, reflect.Struct, reflect.Slice:
+		outData = reflect.New(typeValue).Interface()
+	default:
+		outData = reflect.Zero(typeValue).Interface()
+	}
+	err = json.Unmarshal([]byte(data), &outData)
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET INTERFACE REDIS CLUSTER")
+	}
+
+	switch kind {
+	case reflect.Ptr, reflect.Struct, reflect.Slice:
+		return reflect.ValueOf(outData).Elem().Interface(), nil
+	}
+	var outValue interface{} = outData
+	if reflect.TypeOf(outData).ConvertibleTo(typeValue) {
+		outValueConverted := reflect.ValueOf(outData).Convert(typeValue)
+		outValue = outValueConverted.Interface()
+	}
+	return outValue, nil
+}
+
+func (h *ClusterRedisHelper) GetInterfaceWithContext(ctx context.Context, key string, value interface{}) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
 	}
 	var err error
 	data, err := h.Client.Get(key).Result()
@@ -126,7 +185,22 @@ func (h *ClusterRedisHelper) GetInterface(key string, value interface{}) (interf
 }
 
 func (h *ClusterRedisHelper) Set(key string, value interface{}, expiration time.Duration) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
+		return e.New("Redis Client is null", "REDIS", "REDIS Set")
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
+	}
+	_, err = h.Client.Set(key, string(data), expiration).Result()
+	if err != nil {
+		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
+	}
+	return nil
+}
+
+func (h *ClusterRedisHelper) SetWithContext(ctx context.Context, key string, value interface{}, expiration time.Duration) *e.Error {
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Set")
 	}
 	data, err := json.Marshal(value)
@@ -141,8 +215,8 @@ func (h *ClusterRedisHelper) Set(key string, value interface{}, expiration time.
 }
 
 func (h *ClusterRedisHelper) SetNX(key string, value interface{}, expiration time.Duration) (bool, *e.Error) {
-	if h.Client==nil{
-		return false,e.New("Redis Client is null", "REDIS", "REDIS SetNX")
+	if h.Client == nil {
+		return false, e.New("Redis Client is null", "REDIS", "REDIS SetNX")
 	}
 	var isSuccessful bool
 	data, err := json.Marshal(value)
@@ -157,7 +231,7 @@ func (h *ClusterRedisHelper) SetNX(key string, value interface{}, expiration tim
 }
 
 func (h *ClusterRedisHelper) Del(key string) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Del")
 	}
 	_, err := h.Client.Del(key).Result()
@@ -174,7 +248,7 @@ func (h *ClusterRedisHelper) DelMulti(keys ...string) *e.Error {
 }
 
 func (h *ClusterRedisHelper) Expire(key string, expiration time.Duration) *e.Error {
-	if h.Client==nil{
+	if h.Client == nil {
 		return e.New("Redis Client is null", "REDIS", "REDIS Expire")
 	}
 	_, err := h.Client.Expire(key, expiration).Result()
@@ -197,8 +271,8 @@ func (h *ClusterRedisHelper) RenameKey(oldkey, newkey string) *e.Error {
 }
 
 func (h *ClusterRedisHelper) GetType(key string) (string, *e.Error) {
-	if h.Client==nil{
-		return "",e.New("Redis Client is null", "REDIS", "REDIS GetType")
+	if h.Client == nil {
+		return "", e.New("Redis Client is null", "REDIS", "REDIS GetType")
 	}
 	typeK, err := h.Client.Type(key).Result()
 	if err != nil {
@@ -206,7 +280,12 @@ func (h *ClusterRedisHelper) GetType(key string) (string, *e.Error) {
 	}
 	return typeK, nil
 }
-func (h *ClusterRedisHelper) Close()  *e.Error {
+func (h *ClusterRedisHelper) Close() *e.Error {
 	//?
 	return nil
+}
+
+func (h *ClusterRedisHelper) IncreaseMinValue(keys []string, value int) (string, *e.Error) {
+
+	return "", nil
 }

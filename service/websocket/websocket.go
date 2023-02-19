@@ -41,10 +41,10 @@ type Websocket struct {
 	//micro client
 	Client map[string]*micro.MicroClient
 	// Redis
-	rd r.CacheHelper
+	Rd r.CacheHelper
 }
 
-func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) {
+func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) (bestNetwork string) {
 	w.Id = uuid.NewString()
 	err := godotenv.Load(os.Expand("/config/.env"))
 	if err != nil {
@@ -113,7 +113,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	if err_r != nil {
 		log.ErrorF(err_r.Msg())
 	}
-	w.rd = redis
+	w.Rd = redis
 
 	// init Subscriber
 	var err_s *e.Error
@@ -127,6 +127,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		for _, event := range event_list {
 			if callback, ok := mapSubCallbackfn[event]; ok {
 				isMultiTopic := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/MULTI_TOPIC")
+				isChooseBestNetwork := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/BEST_NETWORK")
 				if isMultiTopic == "true" {
 					subEvents := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/TOPIC")
 					eventList := strings.Split(subEvents, ",")
@@ -136,6 +137,18 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 						if err_s != nil {
 							log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 						}
+					}
+				} else if isChooseBestNetwork == "true" {
+					subEvents := w.config.ReadVAR("websocket/" + service_name + "/sub/kafka/" + event + "/TOPIC")
+					eventList := strings.Split(subEvents, ",")
+					key, err_e := w.Rd.IncreaseMinValue(eventList, 1)
+					if err_e != nil {
+						log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
+					}
+					bestNetwork = key
+					err_s = w.Sub[key].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", key), service_name, callback, nil, key)
+					if err_s != nil {
+						log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 					}
 				} else {
 					w.Sub[event] = &ed.EventDriven{}
@@ -179,6 +192,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 		}
 	}
 
+	return
 }
 
 func (w *Websocket) Start() {

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/goonma/sdk/log"
@@ -33,6 +34,8 @@ var Upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
+	ID string
+
 	Hub *Hub
 
 	Rooms []string
@@ -46,10 +49,11 @@ type Client struct {
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
+		ID:    uuid.New().String(),
 		Hub:   hub,
 		Rooms: make([]string, 0),
 		Conn:  conn,
-		send:  make(chan []byte,256),
+		send:  make(chan []byte, 256),
 	}
 }
 
