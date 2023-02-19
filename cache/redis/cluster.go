@@ -284,3 +284,8 @@ func (h *ClusterRedisHelper) Close() *e.Error {
 	//?
 	return nil
 }
+
+func (h *ClusterRedisHelper) IncreaseMinWithPattern(pattern string, value int) (string, *e.Error) {
+
+	return "", nil
+}
