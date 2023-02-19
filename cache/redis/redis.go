@@ -132,7 +132,7 @@ func (h *RedisHelper) IncreaseInt(key string, value int) (int, *e.Error) {
 }
 
 // return key after increase min value by pattern
-func (h *RedisHelper) IncreaseMinWithPattern(pattern string, value int) (string, *e.Error) {
+func (h *RedisHelper) IncreaseMinWithPattern(keys []string, value int) (string, *e.Error) {
 	if h.Client == nil {
 		return "", e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
@@ -141,15 +141,6 @@ func (h *RedisHelper) IncreaseMinWithPattern(pattern string, value int) (string,
 	key := ""
 	ctx := context.Background()
 	err := h.Client.Watch(ctx, func(tx *redis.Tx) error {
-		keys, _, errGetkey := h.GetKeysByPattern(pattern)
-		if errGetkey != nil {
-			return errors.New(errGetkey.Msg())
-		}
-
-		if len(keys) == 0 {
-			return errors.New("Not found any key match pattern")
-		}
-
 		key = keys[0]
 		minValue, err := tx.Get(ctx, key).Int()
 		if err != nil && err != redis.Nil {
@@ -175,7 +166,7 @@ func (h *RedisHelper) IncreaseMinWithPattern(pattern string, value int) (string,
 			return nil
 		})
 		return err
-	}, pattern)
+	}, key)
 	//
 	if err != nil {
 		return "", e.New(err.Error(), "REDIS", "IncreaseInt")
