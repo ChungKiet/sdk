@@ -89,8 +89,8 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 	//new grpc server
 	maxMsgSize := 1024 * 1024 * 1024 //1GB
 	//read 2FA Key for verify token
-	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR("key/2fa/KEY")
-	grpcSRV.token_Key=grpcSRV.config.ReadVAR("key/api/KEY")
+	grpcSRV.two_FA_Key=grpcSRV.config.ReadVAR(grpcSRV.two_FA_Key)
+	grpcSRV.token_Key=grpcSRV.config.ReadVAR(grpcSRV.token_Key)
 	//
 	grpcSRV.service= grpc.NewServer(
 		grpc.MaxRecvMsgSize(maxMsgSize), 
@@ -109,7 +109,7 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 	if len(args)>0{
 		arr,err:=utils.ItoSliceString(args[0])
 		if err!=nil{
-			log.ErrorF(err.Error(),"InitGrpc","",args)
+			log.ErrorF(err.Error(),"InitgRPC","",args)
 		}
 		grpcSRV.whitelist=arr
 	}

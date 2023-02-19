@@ -6,7 +6,7 @@ import(
 func main(){
 	
 	key:="isiuriwruweirmuriewcr94829420"
-	/*user_id:="1"
+	user_id:="63e0a0943f1f02ad5ab144af"
 	role_id:="2"
 	username:="sonhoang"
 	email:="suhoangson@gmail.com"

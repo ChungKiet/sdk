@@ -12,6 +12,7 @@ type HTTP struct{
 }
 func (sv *HTTP)hello(c echo.Context) error {
 	sv.GetToken(c)
+	fmt.Println(sv.GetUserAgent(c))
 	return c.String(http.StatusOK, "Hello, World!")
 }
 func authenmethod(c echo.Context) error {

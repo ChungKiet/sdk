@@ -10,6 +10,7 @@ import (
 	j "github.com/goonma/sdk/jwt"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mileusna/useragent"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/joho/godotenv"
 	"os"
@@ -39,6 +40,7 @@ type HTTPServer struct {
 	path_key string
 	//ACL
 	Acl map[string]interface{}
+	Useragent map[string]string
 }
 
 /*
@@ -305,6 +307,24 @@ func (sv *HTTPServer)Restricted(c echo.Context) error {
 	//name := claims.Name
 	//return c.String(http.StatusOK, "Welcome "+name+"!")
 	return errors.New("Access Deny")
+}
+func (sv *HTTPServer) GetUserAgent(c echo.Context) map[string]string{
+	m:=utils.DictionaryString()
+	ua := useragent.Parse(c.Request().UserAgent())
+	//fmt.Printf("UserAgent%+v",ua)
+	//return nil
+	m["ip"]=c.RealIP()
+	m["device"]=ua.Device
+	m["app"]=ua.Name
+	m["os"]=ua.OS
+	m["version"]=ua.OSVersion
+	if ua.Bot{
+		m["isbot"]="1"
+	}else{
+		m["isbot"]="0"
+	}
+	m["ua"]=c.Request().UserAgent()
+	return m
 }
 /*
 func (sv *HTTPServer) JWTConfig() middleware.JWTConfig{
