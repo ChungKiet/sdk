@@ -46,7 +46,7 @@ type Websocket struct {
 
 func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) (bestNetwork string) {
 	w.Id = uuid.NewString()
-	err := godotenv.Load(os.Expand("/config/.env"))
+	err := godotenv.Load(os.ExpandEnv("/config/.env"))
 	if err != nil {
 		err := godotenv.Load(os.ExpandEnv(".env"))
 		if err != nil {
