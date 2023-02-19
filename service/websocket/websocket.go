@@ -46,7 +46,7 @@ type Websocket struct {
 
 func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, mapSubCallbackfn map[string]event.ConsumeFn, args ...interface{}) (bestNetwork string) {
 	w.Id = uuid.NewString()
-	err := godotenv.Load(os.Expand("/config/.env"))
+	err := godotenv.Load(os.ExpandEnv("/config/.env"))
 	if err != nil {
 		err := godotenv.Load(os.ExpandEnv(".env"))
 		if err != nil {
@@ -146,6 +146,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 						log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
 					}
 					bestNetwork = key
+					w.Sub[key] = &ed.EventDriven{}
 					err_s = w.Sub[key].InitialSubscriberWithGlobal(w.config, fmt.Sprintf("websocket/%s/%s/%s", service_name, "sub/kafka", key), service_name, callback, nil, key)
 					if err_s != nil {
 						log.ErrorF(err_s.Msg(), err_s.Group(), err_s.Key())
@@ -195,7 +196,7 @@ func (w *Websocket) Initial(service_name string, wsHandleFunc echo.HandlerFunc, 
 	return
 }
 
-func (w *Websocket) Start() {
+func (w *Websocket) Start(betNetwork string) {
 	if w.host == "" || w.port == "" {
 		log.Error("Please Initial before make new server")
 		os.Exit(0)
@@ -220,6 +221,12 @@ func (w *Websocket) Start() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
+	if betNetwork != "" {
+		_, err := w.Rd.IncreaseInt(betNetwork, -1)
+		if err != nil {
+			w.Srv.Logger.Error("can't decrease best network")
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := w.Srv.Shutdown(ctx); err != nil {
