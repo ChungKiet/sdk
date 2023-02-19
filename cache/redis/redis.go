@@ -130,6 +130,59 @@ func (h *RedisHelper) IncreaseInt(key string, value int) (int, *e.Error) {
 	}
 	return res, nil
 }
+
+// return key after increase min value by pattern
+func (h *RedisHelper) IncreaseMinWithPattern(pattern string, value int) (string, *e.Error) {
+	if h.Client == nil {
+		return "", e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	res := 0
+	//
+	key := ""
+	ctx := context.Background()
+	err := h.Client.Watch(ctx, func(tx *redis.Tx) error {
+		keys, _, errGetkey := h.GetKeysByPattern(pattern)
+		if errGetkey != nil {
+			return errors.New(errGetkey.Msg())
+		}
+
+		if len(keys) == 0 {
+			return errors.New("Not found any key match pattern")
+		}
+
+		key = keys[0]
+		minValue, err := tx.Get(ctx, key).Int()
+		if err != nil && err != redis.Nil {
+			return err
+		}
+
+		var n int
+		for _, k := range keys {
+			n, err = tx.Get(ctx, k).Int()
+			if err != nil && err != redis.Nil {
+				return err
+			}
+
+			if n > minValue {
+				minValue = n
+				key = k
+			}
+		}
+
+		_, err = tx.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+			res = minValue + value
+			pipe.Set(ctx, key, res, time.Duration(300)*time.Second)
+			return nil
+		})
+		return err
+	}, pattern)
+	//
+	if err != nil {
+		return "", e.New(err.Error(), "REDIS", "IncreaseInt")
+	}
+	return key, nil
+}
+
 func (h *RedisHelper) GetInterface(key string, value interface{}) (interface{}, *e.Error) {
 	if h.Client == nil {
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
