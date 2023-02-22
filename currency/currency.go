@@ -55,7 +55,7 @@ func (s SystemCurrency) MultipleFloat(mul float64) SystemCurrency {
 	return SystemCurrency{
 		Type:     s.Type,
 		Name:     s.Name,
-		Value:    int64(float64(s.Value) * mul), //TODO: Anh Lam check lai giup em
+		Value:    int64(float64(s.Value) * mul),
 		Decimals: s.Decimals,
 	}
 }
@@ -91,7 +91,7 @@ func ConvertFromAmountInWieBlockChain(valueInBlockChain string, typeCurrency Cur
 	if !ok {
 		log.Printf("Amount in wie error, amountInWei = %v", valueInBlockChain)
 		return nil, false
-	}	
+	}
 	systemValue := new(big.Int).Div(amountInWei, big.NewInt(int64(math.Pow10(BLOCK_CHAIN_DECIMALS-SYSTEM_DECIMALS))))
 	systemCurrency := &SystemCurrency{
 		Type:     typeCurrency,
