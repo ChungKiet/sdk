@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	e "github.com/goonma/sdk/base/error"
+	"github.com/goonma/sdk/cache/redis/lock"
 	"github.com/goonma/sdk/utils"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -35,6 +37,8 @@ func InitRedis(addr, password string, db_index int) (*redis.Client, *e.Error) {
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "INIT REDIS")
 	}
+
+	lock.InitPool(goredis.NewPool(rdbclient))
 	return rdbclient, nil
 }
 
@@ -334,17 +338,80 @@ func (h *RedisHelper) GetType(key string) (string, *e.Error) {
 }
 
 func (h *RedisHelper) GetWithContext(ctx context.Context, key string) (interface{}, *e.Error) {
-	//
-
-	return nil, nil
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.Get(ctx, key).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+	var value interface{}
+	err = json.Unmarshal([]byte(data), &value)
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+	return value, nil
 }
-func (h *RedisHelper) GetInterfaceWithContext(ctx context.Context, key string, value interface{}) (interface{}, *e.Error) {
-	//
 
-	return nil, nil
+func (h *RedisHelper) GetInterfaceWithContext(ctx context.Context, key string, value interface{}) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GetInterface")
+	}
+	data, err := h.Client.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, e.New("not found", "REDIS", "GET INTERFACE REDIS")
+		}
+		return nil, e.New(err.Error(), "REDIS", "GET INTERFACE REDIS")
+	}
+
+	typeValue := reflect.TypeOf(value)
+	kind := typeValue.Kind()
+
+	var outData interface{}
+	switch kind {
+	case reflect.Ptr, reflect.Struct, reflect.Slice:
+		outData = reflect.New(typeValue).Interface()
+	default:
+		outData = reflect.Zero(typeValue).Interface()
+	}
+	err = json.Unmarshal([]byte(data), &outData)
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET INTERFACE REDIS")
+	}
+
+	switch kind {
+	case reflect.Ptr, reflect.Struct, reflect.Slice:
+		outDataValue := reflect.ValueOf(outData)
+
+		if reflect.Indirect(reflect.ValueOf(outDataValue)).IsZero() {
+			return nil, e.New(errors.New("Get redis nil result").Error(), "REDIS", "GET INTERFACE REDIS")
+		}
+		if outDataValue.IsZero() {
+			return outDataValue.Interface(), nil
+		}
+		return outDataValue.Elem().Interface(), nil
+	}
+	var outValue interface{} = outData
+	if reflect.TypeOf(outData).ConvertibleTo(typeValue) {
+		outValueConverted := reflect.ValueOf(outData).Convert(typeValue)
+		outValue = outValueConverted.Interface()
+	}
+	return outValue, nil
 }
 
 func (h *RedisHelper) SetWithContext(ctx context.Context, key string, value interface{}, expiration time.Duration) *e.Error {
-	//
+	if h.Client == nil {
+		return e.New("Redis Client is null", "REDIS", "REDIS Set")
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return e.New(err.Error(), "REDIS", "SET REDIS")
+	}
+
+	_, err = h.Client.Set(ctx, key, string(data), expiration).Result()
+	if err != nil {
+		return e.New(err.Error(), "REDIS", "SET REDIS")
+	}
 	return nil
 }
