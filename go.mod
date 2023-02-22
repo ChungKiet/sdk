@@ -7,6 +7,7 @@ require (
 	github.com/ThreeDotsLabs/watermill v1.1.1
 	github.com/ThreeDotsLabs/watermill-kafka/v2 v2.2.1
 	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-redsync/redsync/v4 v4.8.1
 	github.com/golang-jwt/jwt/v4 v4.4.2
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
@@ -15,6 +16,7 @@ require (
 	github.com/hashicorp/vault/api v1.4.1
 	github.com/joho/godotenv v1.4.0
 	github.com/labstack/echo/v4 v4.9.1
+	github.com/mileusna/useragent v1.2.1
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/xdg-go/scram v1.1.1
 	go.mongodb.org/mongo-driver v1.8.4
@@ -36,8 +38,6 @@ require (
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/go-redsync/redsync v1.4.2 // indirect
-	github.com/go-redsync/redsync/v4 v4.8.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/snappy v0.0.4 // indirect
@@ -70,7 +70,6 @@ require (
 	github.com/lithammer/shortuuid/v3 v3.0.4 // indirect
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
-	github.com/mileusna/useragent v1.2.1 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.0.0 // indirect
@@ -97,5 +96,4 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
