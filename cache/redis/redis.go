@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/go-redsync/redsync/v4/redis/goredis/v9"
 	e "github.com/goonma/sdk/base/error"
+	"github.com/goonma/sdk/cache/redis/lock"
 	"github.com/goonma/sdk/utils"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -35,6 +37,8 @@ func InitRedis(addr, password string, db_index int) (*redis.Client, *e.Error) {
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "INIT REDIS")
 	}
+
+	lock.InitPool(goredis.NewPool(rdbclient))
 	return rdbclient, nil
 }
 
