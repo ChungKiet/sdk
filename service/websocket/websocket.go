@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"fmt"
+	j "github.com/goonma/sdk/jwt"
 	"net/http"
 	"os"
 	"strings"
@@ -274,4 +275,13 @@ func (w *Websocket) InitialMicroClient(remote_services map[string]string, initCo
 			}
 		}
 	}
+}
+
+func (w *Websocket) GetUserId(token string) (string, error) {
+	key := w.config.ReadVAR("key/api/KEY")
+	Claims_info, err := j.VerifyJWTToken(key, token)
+	if err != nil {
+		return "", err
+	}
+	return Claims_info.UserID, nil
 }

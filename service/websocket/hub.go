@@ -16,6 +16,9 @@ type Hub struct {
 	// Registered Clients.
 	Clients map[*Client]bool
 
+	// client id map
+	ClientIDs map[string]*Client
+
 	// Rooms
 	Rooms map[string]map[*Client]bool
 
@@ -55,9 +58,11 @@ func (h *Hub) run() {
 		select {
 		case client := <-h.Register:
 			h.Clients[client] = true
+			h.ClientIDs[client.ID] = client
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
+				delete(h.ClientIDs, client.ID)
 				close(client.send)
 			}
 		case cr := <-h.JoinRoom:
