@@ -4,25 +4,38 @@ import (
 	"log"
 	"math"
 	"math/big"
+
+	"github.com/goonma/sdk/currency/decimal"
 )
 
-const SYSTEM_DECIMALS int = 8
+const SYSTEM_DECIMALS int = 12
+
 const BLOCK_CHAIN_DECIMALS int = 18
 
 type SystemCurrency struct {
-	Type     Currency `json:"type" bson:"type"`
-	Name     string   `json:"name,omitempty"  bson:"name,omitempty"`
-	Value    int64    `json:"value" bson:"value"`
-	Decimals int      `json:"decimals" bson:"decimals"`
+	Type  Currency
+	Name  string
+	Value decimal.Decimal
 }
 
-type ExchangeRes struct {
-	Success bool    `json:"success"`
-	Data    float64 `json:"data"`
+func (s SystemCurrency) GetRealValue() *big.Int {
+	// convert string to big int
+	amountInWei := s.Value.Div(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	return amountInWei.BigInt()
+
 }
 
-func (s SystemCurrency) GetRealValue() float64 {
-	return float64(s.Value) / math.Pow10(SYSTEM_DECIMALS)
+func (s SystemCurrency) GetFloat() float64 {
+	// convert string to big int
+	amountInWei := s.Value.Div(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	// result, ok := amountInWei.Float64()
+	// if !ok {
+	// 	log.Printf("convert float err = %v", amountInWei)
+	// 	return -1
+	// }
+
+	return amountInWei.InexactFloat64()
+
 }
 
 func (s SystemCurrency) Validate() bool {
@@ -30,93 +43,125 @@ func (s SystemCurrency) Validate() bool {
 }
 
 func (s SystemCurrency) Compare(other SystemCurrency) CompareSystemCurrency {
-	if s.Type != other.Type || s.Decimals != other.Decimals {
+	if s.Type != other.Type {
 		return CS_DIFFERENCE
 	}
-	if s.Value < other.Value {
+
+	if s.Value.Cmp(other.Value) < 0 {
 		return CS_SMALLER
 	}
-	if s.Value > other.Value {
+	if s.Value.Cmp(other.Value) > 0 {
 		return CS_BIGGER
 	}
 	return CS_EQUAL
 }
 
-func (s SystemCurrency) Multiple(mul int64) SystemCurrency {
+func (s SystemCurrency) Mul(other SystemCurrency) SystemCurrency {
 	return SystemCurrency{
-		Type:     s.Type,
-		Name:     s.Name,
-		Value:    s.Value * mul,
-		Decimals: s.Decimals,
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Mul(other.Value),
 	}
 }
 
-func (s SystemCurrency) MultipleFloat(mul float64) SystemCurrency {
+func (s SystemCurrency) Add(other SystemCurrency) SystemCurrency {
 	return SystemCurrency{
-		Type:     s.Type,
-		Name:     s.Name,
-		Value:    int64(float64(s.Value) * mul),
-		Decimals: s.Decimals,
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Add(other.Value),
 	}
 }
 
-func ConvertIntToSystemCurrency(realValue int, typeCurrency Currency) SystemCurrency {
-	//TODO: validate realValue
-	systemValue := int64(math.Pow10(SYSTEM_DECIMALS)) * int64(realValue)
-	return convertSystemCurrency(systemValue, typeCurrency)
+func (s SystemCurrency) Sub(other SystemCurrency) SystemCurrency {
+	return SystemCurrency{
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Sub(other.Value),
+	}
 }
 
-// khi lay price da duoc convert roi
-func ConvertInt64ToSystemCurrencyWithSystemValue(realValue int64, typeCurrency Currency) SystemCurrency {
-	//TODO: validate realValue
-	return convertSystemCurrency(realValue, typeCurrency)
+func (s SystemCurrency) Div(other SystemCurrency) SystemCurrency {
+	return SystemCurrency{
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Div(other.Value),
+	}
 }
 
-func ConvertInt64ToSystemCurrency(realValue int64, typeCurrency Currency) SystemCurrency {
-	//TODO: validate realValue
-	systemValue := int64(math.Pow10(SYSTEM_DECIMALS)) * realValue
-	return convertSystemCurrency(systemValue, typeCurrency)
+func ConvertInt64ToSystemCurrency(realValue int64, typeCurrency Currency) (SystemCurrency, bool) {
+	if realValue < 0 {
+		log.Printf("Amount in wie error, realValue = %v", realValue)
+		return SystemCurrency{}, false
+	}
+
+	value := decimal.NewFromInt(realValue)
+	systemValue := value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+
+	systemCurrency := SystemCurrency{
+		Type:  typeCurrency,
+		Name:  CurrencySymbol(typeCurrency),
+		Value: systemValue,
+	}
+
+	return systemCurrency, true
 }
 
-func ConvertFloatToSystemCurrency(realValue float64, typeCurrency Currency) SystemCurrency {
-	//TODO: validate realValue
-	systemValue := int64(math.Round(math.Pow10(SYSTEM_DECIMALS) * realValue))
-	return convertSystemCurrency(systemValue, typeCurrency)
+func ConvertFloatToSystemCurrency(realValue float64, typeCurrency Currency) (SystemCurrency, bool) {
+	// validate realValue
+	if realValue < 0 {
+		log.Printf("Amount in wie error, realValue = %v", realValue)
+		return SystemCurrency{}, false
+	}
+	value := decimal.NewFromFloat(realValue)
+	systemValue := value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+
+	systemCurrency := SystemCurrency{
+		Type:  typeCurrency,
+		Name:  CurrencySymbol(typeCurrency),
+		Value: systemValue,
+	}
+
+	return systemCurrency, true
 }
 
-func ConvertFromAmountInWieBlockChain(valueInBlockChain string, typeCurrency Currency) (*SystemCurrency, bool) {
+func ConvertFromAmountInWieBlockChain(valueInBlockChain string, typeCurrency Currency) (SystemCurrency, bool) {
 
-	amountInWei := new(big.Int)
-	amountInWei, ok := amountInWei.SetString(valueInBlockChain, 10)
-	if !ok {
+	amountInWei, err := decimal.NewFromString(valueInBlockChain)
+	if err != nil {
 		log.Printf("Amount in wie error, amountInWei = %v", valueInBlockChain)
-		return nil, false
+		return SystemCurrency{}, false
 	}
-	systemValue := new(big.Int).Div(amountInWei, big.NewInt(int64(math.Pow10(BLOCK_CHAIN_DECIMALS-SYSTEM_DECIMALS))))
-	systemCurrency := &SystemCurrency{
-		Type:     typeCurrency,
-		Name:     CurrencySymbol(typeCurrency),
-		Value:    systemValue.Int64(),
-		Decimals: SYSTEM_DECIMALS,
+
+	systemValue := amountInWei.Div(decimal.NewFromInt(int64(math.Pow10(BLOCK_CHAIN_DECIMALS - SYSTEM_DECIMALS))))
+
+	systemCurrency := SystemCurrency{
+		Type:  typeCurrency,
+		Name:  CurrencySymbol(typeCurrency),
+		Value: systemValue,
 	}
 	return systemCurrency, true
 }
 
-func (s SystemCurrency) ConvertValueToWieBlockChain() *big.Int {
-	systemValue := big.NewInt(s.Value)
-	return new(big.Int).Mul(systemValue, big.NewInt(int64(math.Pow10(BLOCK_CHAIN_DECIMALS-SYSTEM_DECIMALS))))
+func (s SystemCurrency) ConvertValueToBigInt() *big.Int {
+
+	// convert string to big int
+	amountInWei := s.Value.Mul(decimal.NewFromInt(int64(math.Pow10(BLOCK_CHAIN_DECIMALS - SYSTEM_DECIMALS))))
+	return amountInWei.BigInt()
 }
 
-func convertSystemCurrency(systemValue int64, typeCurrency Currency) SystemCurrency {
-	systemCurrency := SystemCurrency{
-		Type:     typeCurrency,
-		Name:     CurrencySymbol(typeCurrency),
-		Value:    systemValue,
-		Decimals: SYSTEM_DECIMALS,
+func NewSystemCurrency(value string, typeCurrency Currency) (SystemCurrency, bool) {
+
+	amount, err := decimal.NewFromString(value)
+	if err != nil {
+		log.Printf("Amount in wie error, amountInWei = %v", value)
+		return SystemCurrency{}, false
 	}
-	return systemCurrency
-}
 
-func NewSystemCurrency(systemValue int64, typeCurrency Currency) SystemCurrency {
-	return convertSystemCurrency(systemValue, typeCurrency)
+	systemCurrency := SystemCurrency{
+		Type:  typeCurrency,
+		Name:  CurrencySymbol(typeCurrency),
+		Value: amount,
+	}
+	return systemCurrency, true
+
 }
