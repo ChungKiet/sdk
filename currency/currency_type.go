@@ -22,6 +22,15 @@ func CurrencySymbol(code Currency) string {
 	return currencySymbol[code]
 }
 
+func CurrencyCode(symbol string) Currency {
+	for k, v := range currencySymbol {
+		if v == symbol {
+			return k
+		}
+	}
+	return 0
+}
+
 type CompareSystemCurrency int
 
 const (
