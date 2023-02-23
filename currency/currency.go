@@ -64,6 +64,15 @@ func (s SystemCurrency) Mul(other SystemCurrency) SystemCurrency {
 	}
 }
 
+// multiple with float
+func (s SystemCurrency) MulWithFloat(value float64) SystemCurrency {
+	return SystemCurrency{
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Mul(decimal.NewFromFloat(value)),
+	}
+}
+
 func (s SystemCurrency) Add(other SystemCurrency) SystemCurrency {
 	return SystemCurrency{
 		Type:  s.Type,
@@ -87,6 +96,8 @@ func (s SystemCurrency) Div(other SystemCurrency) SystemCurrency {
 		Value: s.Value.Div(other.Value),
 	}
 }
+
+func 
 
 func ConvertInt64ToSystemCurrency(realValue int64, typeCurrency Currency) (SystemCurrency, bool) {
 	if realValue < 0 {
