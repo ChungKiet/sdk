@@ -97,7 +97,13 @@ func (s SystemCurrency) Div(other SystemCurrency) SystemCurrency {
 	}
 }
 
-func 
+func (s SystemCurrency) DivWithFloat(value float64) SystemCurrency {
+	return SystemCurrency{
+		Type:  s.Type,
+		Name:  s.Name,
+		Value: s.Value.Div(decimal.NewFromFloat(value)),
+	}
+}
 
 func ConvertInt64ToSystemCurrency(realValue int64, typeCurrency Currency) (SystemCurrency, bool) {
 	if realValue < 0 {
