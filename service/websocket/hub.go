@@ -57,6 +57,7 @@ func (h *Hub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
+				client.LeaveAllRooms()
 				delete(h.Clients, client)
 				close(client.send)
 			}
@@ -66,6 +67,7 @@ func (h *Hub) run() {
 				h.Rooms[cr.Room] = map[*Client]bool{}
 			}
 			h.Rooms[cr.Room][cr.Client] = true
+			cr.Client.Rooms = append(cr.Client.Rooms, cr.Room)
 		case cr := <-h.LeaveRoom:
 			delete(h.Rooms[cr.Room], cr.Client)
 		case message := <-h.Broadcast:
@@ -73,6 +75,7 @@ func (h *Hub) run() {
 				select {
 				case client.send <- message:
 				default:
+					client.LeaveAllRooms()
 					close(client.send)
 					delete(h.Clients, client)
 				}
