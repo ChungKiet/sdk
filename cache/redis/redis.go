@@ -65,6 +65,8 @@ func InitRedisSentinel(addr_arr_str, master_name, password string, db_index int)
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "INIT SENTINE REDIS")
 	}
+
+	lock.InitPool(goredis.NewPool(redisdb))
 	return redisdb, nil
 }
 func (h *RedisHelper) Close() *e.Error {
