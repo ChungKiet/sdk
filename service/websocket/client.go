@@ -138,6 +138,7 @@ func (c *Client) LeaveAllRooms() {
 			Room:   room,
 		}
 	}
+	c.Rooms = []string{}
 }
 
 //// serveWs handles websocket requests from the peer.

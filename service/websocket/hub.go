@@ -57,7 +57,6 @@ func (h *Hub) run() {
 			h.Clients[client] = true
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
-				client.LeaveAllRooms()
 				delete(h.Clients, client)
 				close(client.send)
 			}
