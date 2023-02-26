@@ -65,7 +65,6 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.Unregister <- c
-		c.LeaveAllRooms()
 		c.Conn.Close()
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
@@ -74,6 +73,7 @@ func (c *Client) ReadPump() {
 	for {
 		_, _, err := c.Conn.ReadMessage()
 		if err != nil {
+			c.LeaveAllRooms()
 			log.Error(err.Error(), "Websocket Read Pump")
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Error(err.Error(), "Websocket Read Pump")
