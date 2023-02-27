@@ -160,7 +160,7 @@ func (h *RedisHelper) IncreaseMinValue(keys []string, value int) (string, *e.Err
 				return err
 			}
 
-			if n > minValue {
+			if minValue > n {
 				minValue = n
 				key = k
 			}
