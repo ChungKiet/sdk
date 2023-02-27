@@ -168,7 +168,7 @@ func (h *RedisHelper) IncreaseMinValue(keys []string, value int) (string, *e.Err
 
 		_, err = tx.Pipelined(ctx, func(pipe redis.Pipeliner) error {
 			res = minValue + value
-			pipe.Set(ctx, key, res, time.Duration(300)*time.Second)
+			pipe.Set(ctx, key, res, time.Duration(24*365*5)*time.Hour)
 			return nil
 		})
 		return err
