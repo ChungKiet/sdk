@@ -45,6 +45,8 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	ActionData chan []byte
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
@@ -71,7 +73,7 @@ func (c *Client) ReadPump() {
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, _, err := c.Conn.ReadMessage()
+		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
 			c.LeaveAllRooms()
 			log.Error(err.Error(), "Websocket Read Pump")
@@ -80,6 +82,8 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
+
+		c.ActionData <- message
 	}
 }
 
