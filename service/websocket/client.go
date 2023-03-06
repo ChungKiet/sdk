@@ -45,8 +45,6 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
-
-	ActionData chan []byte
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
@@ -64,7 +62,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *Client) ReadPump() {
+func (c *Client) ReadPump(handleAction func(msg []byte)) {
 	defer func() {
 		c.Hub.Unregister <- c
 		c.Conn.Close()
@@ -83,7 +81,7 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		c.ActionData <- message
+		handleAction(message)
 	}
 }
 
