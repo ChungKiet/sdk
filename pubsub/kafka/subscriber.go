@@ -43,6 +43,7 @@ type Subscriber struct {
 	no_inject     bool
 	//
 	config map[string]string
+	init_mode int
 }
 
 // Initial Publisher
@@ -142,7 +143,7 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-
+	sub.init_mode=0
 	return nil
 }
 
@@ -246,7 +247,7 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-
+	sub.init_mode=1
 	return nil
 }
 
@@ -295,7 +296,11 @@ func (sub *Subscriber) Consume() *e.Error {
 	for i := 0; i < sub.num_consumer; i++ {
 		//config
 		conf := NewConsumerConfig(sub.config)
-		conf.Consumer.Offsets.Initial = sarama.OffsetOldest
+		if sub.init_mode==0{
+			conf.Consumer.Offsets.Initial = sarama.OffsetOldest
+		}else{
+			conf.Consumer.Offsets.Initial = sarama.OffsetNewest
+		}
 		//sarama.OffsetOldest get from last offset not yet commit
 		//sarama.OffsetNewest  ignore all mesage just get new message after consumer start
 		//var err Error
