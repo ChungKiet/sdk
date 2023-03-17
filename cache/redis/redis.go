@@ -301,16 +301,17 @@ func (h *RedisHelper) GetKeysByPattern(pattern string) ([]string, uint64, *e.Err
 		keys   []string
 		cursor uint64 = 0
 		limit  int64  = 100
+		err    error
 	)
+
 	for {
 		var temp_keys []string
-		temp_keys, cursor, err := h.Client.Scan(context.Background(), cursor, pattern, limit).Result()
+		temp_keys, cursor, err = h.Client.Scan(context.Background(), cursor, pattern, limit).Result()
 		if err != nil {
 			return nil, 0, e.New(err.Error(), "REDIS", "GET KEYS REDIS")
 		}
 
 		keys = append(keys, temp_keys...)
-
 		if cursor == 0 {
 			break
 		}
