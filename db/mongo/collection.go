@@ -3,23 +3,25 @@ package mongo
 import (
 	"context"
 	"errors"
+	"reflect"
+	"time"
+
 	"github.com/goonma/sdk/db/mongo/enum"
 	"github.com/goonma/sdk/db/mongo/status"
+	"github.com/goonma/sdk/log"
+	"github.com/goonma/sdk/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"reflect"
-	"github.com/goonma/sdk/log"
-	"github.com/goonma/sdk/utils"
-	"time"
 	//"fmt"
 )
 
 type Collection struct {
 	ColName        string
 	TemplateObject interface{}
+	TimeSeries     bool
 
 	db  *mongo.Database
 	col *mongo.Collection
@@ -181,11 +183,12 @@ func (m *Collection) CreateIndex(keys bson.D, options *options.IndexOptions) err
 	return err
 }
 
-//  @handler: the transaction will be committed when give a non-error
-//  @isolation: will be default value when given nil attributes
-//args[0] // number of retry time
-//args[1] //sleep time for each  retry => milisecond
-func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Isolation,args...interface{}) *status.DBResponse {
+//	@handler: the transaction will be committed when give a non-error
+//	@isolation: will be default value when given nil attributes
+//
+// args[0] // number of retry time
+// args[1] //sleep time for each  retry => milisecond
+func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Isolation, args ...interface{}) *status.DBResponse {
 	// setup Isolation & txn option
 	if isolation == nil {
 		isolation = &defaultIsolation
@@ -197,8 +200,8 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 			isolation.Write = defaultIsolation.Write
 		}
 	}
-	txnOpts:= options.Transaction().SetWriteConcern(isolation.Write).SetReadConcern(isolation.Read)
-	sessionOpts:=options.Session().SetDefaultReadPreference(readpref.Primary())
+	txnOpts := options.Transaction().SetWriteConcern(isolation.Write).SetReadConcern(isolation.Read)
+	sessionOpts := options.Session().SetDefaultReadPreference(readpref.Primary())
 	// start session
 	session, err := m.db.Client().StartSession(sessionOpts)
 	if err != nil {
@@ -209,34 +212,34 @@ func (m *Collection) ApplyTransaction(handler TransactionHandler, isolation *Iso
 		}
 	}
 	defer session.EndSession(context.TODO())
-	num_retry:=1
-	sleep_time:=0//milisecond
-	if len(args)>0{
-		temp:=utils.ItoInt(args[0])
-		if temp>1{
-			num_retry=temp
+	num_retry := 1
+	sleep_time := 0 //milisecond
+	if len(args) > 0 {
+		temp := utils.ItoInt(args[0])
+		if temp > 1 {
+			num_retry = temp
 		}
-		if len(args)>1{
-			temp:=utils.ItoInt(args[1])
-			if temp>0{
-				sleep_time=temp
+		if len(args) > 1 {
+			temp := utils.ItoInt(args[1])
+			if temp > 0 {
+				sleep_time = temp
 			}
 		}
 	}
 	// apply transaction
 	results, txnErr := session.WithTransaction(context.TODO(), handler, txnOpts)
-    if txnErr!=nil && num_retry>1{
-		for i:=1;i<num_retry;i++{
-			results, txnErr= session.WithTransaction(context.TODO(), handler, txnOpts)
-			if txnErr==nil{
+	if txnErr != nil && num_retry > 1 {
+		for i := 1; i < num_retry; i++ {
+			results, txnErr = session.WithTransaction(context.TODO(), handler, txnOpts)
+			if txnErr == nil {
 				break
 			}
-			log.Warn(txnErr.Error()+" | retry","DBTransactionError")
+			log.Warn(txnErr.Error()+" | retry", "DBTransactionError")
 			time.Sleep(time.Duration(sleep_time) * time.Millisecond)
 		}
 	}
 	//
-	
+
 	if txnErr != nil {
 		return &status.DBResponse{
 			Status:    status.DBStatus.Error,
