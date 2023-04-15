@@ -71,6 +71,9 @@ func VerifyJWTToken(key,token_string string) (*CustomClaims,error){
 		}
 		return []byte(key), nil
 	})
+	if err!=nil{
+		return nil,err
+	}
 	claim, ok := token.Claims.(*CustomClaims); 
 	//fmt.Printf("%+v\r\n",token.Claims)
 	if ok && token.Valid {
