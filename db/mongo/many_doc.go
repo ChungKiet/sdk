@@ -2,12 +2,15 @@ package mongo
 
 import (
 	"context"
+	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/goonma/sdk/db/mongo/enum"
 	"github.com/goonma/sdk/db/mongo/status"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"reflect"
-	"time"
 	//"fmt"
 )
 
@@ -65,7 +68,7 @@ func (m *Collection) Distinct(filter interface{}, field string, opt ...*options.
 		Status:  status.DBStatus.Ok,
 		Data:    result,
 		Message: "Distinct documents successfully",
-		Total: int64(len(result)),
+		Total:   int64(len(result)),
 	}
 }
 
@@ -100,9 +103,48 @@ func (m *Collection) Count(ctx context.Context, query interface{}, opts ...*opti
 }
 
 func (m *Collection) QueryMany(ctx context.Context, query interface{}, offset int64, limit int64, sortFields *bson.M) *status.DBResponse {
+	result, err := m.getQueryManyCursor(ctx, query, offset, limit, sortFields)
+	if err != nil {
+		return err
+	}
+
+	// !!! don't use the given context in this step
+	// convert output to object
+	list := m.newList(int(limit))
+	//fmt.Printf("len List: %+v\r\n",list)
+	//fmt.Printf("Before List: %+v\r\n",list)
+	mgoErr := result.All(context.TODO(), &list)
+	result.Close(context.TODO())
+	//fmt.Printf("After List: %+v\r\n",list)
+	if mgoErr != nil {
+		return &status.DBResponse{
+			Status:    status.DBStatus.Error,
+			Message:   "DB error: " + mgoErr.Error(),
+			ErrorCode: enum.QUERY_FAILED,
+		}
+	}
+	count := reflect.ValueOf(list).Len()
+	//fmt.Printf("Count: %+v\r\n",count)
+	if count == 0 {
+		return &status.DBResponse{
+			Status:    status.DBStatus.NotFound,
+			Message:   "Not found any matched " + m.ColName,
+			ErrorCode: enum.NO_DOCUMENT_FOUND,
+		}
+	}
+	return &status.DBResponse{
+		Status:  status.DBStatus.Ok,
+		Message: "Query " + m.ColName + " successfully",
+		Data:    list,
+		Total:   int64(count),
+	}
+}
+
+// For stream result
+func (m *Collection) getQueryManyCursor(ctx context.Context, query interface{}, offset int64, limit int64, sortFields *bson.M) (*mongo.Cursor, *status.DBResponse) {
 	colErr := m.checkCollection()
 	if colErr != nil {
-		return colErr
+		return nil, colErr
 	}
 
 	opt := &options.FindOptions{}
@@ -123,51 +165,42 @@ func (m *Collection) QueryMany(ctx context.Context, query interface{}, offset in
 	bFilter, err := m.convertToBson(query)
 	//fmt.Printf("convertToBson Filter: %+v\r\n",bFilter)
 	if err != nil {
-		return m.parseConversionError(err, "QueryMany")
+		return nil, m.parseConversionError(err, "QueryMany")
 	}
-	
+
 	// find
 	if ctx == nil {
 		ctx = context.TODO()
 	}
-	result, e := m.col.Find(ctx, bFilter, opt)
+
+	resultCursor, e := m.col.Find(ctx, bFilter, opt)
 	if e != nil {
-		return m.parseError(e, "QueryMany", enum.QUERY_FAILED)
+		return nil, m.parseError(e, "QueryMany", enum.QUERY_FAILED)
 	}
-	if e := result.Err(); e != nil {
-		return m.parseError(e, "QueryMany", enum.QUERY_FAILED)
+	if e := resultCursor.Err(); e != nil {
+		return nil, m.parseError(e, "QueryMany", enum.QUERY_FAILED)
+	}
+	return resultCursor, nil
+}
+
+func (m *Collection) QueryManyWithCursorCallback(ctx context.Context, query interface{}, offset int64, limit int64, sortFields *bson.M, cursorCallback func(val interface{})) error {
+	result, err := m.getQueryManyCursor(ctx, query, offset, limit, sortFields)
+	if err != nil {
+		return fmt.Errorf(err.Message)
 	}
 
-	// !!! don't use the given context in this step
-	// convert output to object
-	list := m.newList(int(limit))
-	//fmt.Printf("len List: %+v\r\n",list)
-	//fmt.Printf("Before List: %+v\r\n",list)
-	err = result.All(context.TODO(), &list)
-	result.Close(context.TODO())
-	//fmt.Printf("After List: %+v\r\n",list)
-	if err != nil {
-		return &status.DBResponse{
-			Status:    status.DBStatus.Error,
-			Message:   "DB error: " + err.Error(),
-			ErrorCode: enum.QUERY_FAILED,
+	defer result.Close(ctx)
+	for result.Next(ctx) {
+		data := bson.M{}
+		result.Decode(&data)
+		entity, err := m.convertToObject(data)
+		if err != nil {
+			return err
 		}
+		cursorCallback(reflect.Indirect(reflect.ValueOf(entity)).Interface())
 	}
-	count:=reflect.ValueOf(list).Len()
-	//fmt.Printf("Count: %+v\r\n",count)
-	if  count== 0 {
-		return &status.DBResponse{
-			Status:    status.DBStatus.NotFound,
-			Message:   "Not found any matched " + m.ColName,
-			ErrorCode: enum.NO_DOCUMENT_FOUND,
-		}
-	}
-	return &status.DBResponse{
-		Status:  status.DBStatus.Ok,
-		Message: "Query " + m.ColName + " successfully",
-		Data:    list,
-		Total: int64(count),
-	}
+
+	return nil
 }
 
 func (m *Collection) UpdateMany(ctx context.Context, query interface{}, updater interface{}) *status.DBResponse {
