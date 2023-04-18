@@ -243,6 +243,18 @@ func (micro *Micro) GetRoleID(ctx context.Context) int {
 	}
 	return claims.RoleID
 }
+func (micro *Micro) IsUserVerify(ctx context.Context) int {
+	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
+	//fmt.Println(token)
+	if err != nil {
+		return 0
+	}
+	claims, err_v := jwt.VerifyJWTToken(micro.token_Key, token)
+	if err_v != nil {
+		return 0
+	}
+	return claims.IsVerify
+}
 func (micro *Micro) GetToken(ctx context.Context) string {
 	token, err := grpc_auth.AuthFromMD(ctx, "bearer")
 	//fmt.Println(token)

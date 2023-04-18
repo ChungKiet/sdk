@@ -30,5 +30,9 @@ func main() {
 	micro.Initial(grpc.GetConfig(), nil,false)
 	//
 	micropb.RegisterMicroServiceServer(grpc.GetService(), &micro)
-	grpc.Start()
+	cf:=grpc.GetConfig()
+	c,err1:=cf.CheckItemExist("micro/local/cluster/svc/goonma/referral/config")
+	fmt.Println(c)
+	fmt.Println(err1)
+	//grpc.Start()
 }

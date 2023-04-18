@@ -4,6 +4,7 @@ import(
 	"time"
 	"fmt"
 	"errors"
+	"github.com/goonma/sdk/utils"
 )
 
 type CustomClaims struct {
@@ -12,20 +13,29 @@ type CustomClaims struct {
 	Username string `json:"username"`
 	Email string  `json:"email"`
 	Type string  `json:"type"`
+	IsVerify int `json:"is_verify"`
 	jwt.RegisteredClaims
 }
-func GenerateJWTToken(key_sign,user_id,username,email,ttype string, role_id,expired int) (string,error){
+func GenerateJWTToken(key_sign,user_id,username,email,ttype string, role_id,expired int,args...interface{}) (string,error){
 	signingKey := []byte(key_sign)
 	// Create the claims
+	is_verify:=0
+	if len(args)>0{
+		is_verify=utils.ItoInt(args[0])
+		if is_verify<0{
+			is_verify=0
+		}
+	}
 	claims := CustomClaims{
 		user_id,
 		role_id,
 		username,
 		email,
 		ttype,
+		is_verify,
 		jwt.RegisteredClaims{
 			// A usual scenario is to set the expiration time relative to the current time
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(expired) *  time.Second)),			
+			ExpiresAt: jwt.NewNumericDate(time.Now().UTC().Add(time.Duration(expired) *  time.Second)),			
 			Issuer:    "Goonma.com",
 		},
 	}
@@ -54,7 +64,7 @@ func TokenExpiredTime(key,token_string string) float64{
 	v, _ := err.(*jwt.ValidationError)
 	if v.Errors == jwt.ValidationErrorExpired{
 		//tm := time.Unix(claims.ExpiresAt, 0)
-		return time.Now().Sub(claims.ExpiresAt.Time).Seconds()
+		return time.Now().UTC().Sub(claims.ExpiresAt.Time).Seconds()
 	}
 	return 0
 }

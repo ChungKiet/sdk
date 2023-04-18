@@ -1,6 +1,6 @@
 package main 
 import (
-	worker "github.com/goonma/sdk/service/worker/event"
+	worker "github.com/goonma/sdk/service/worker/subscriber"
 	//ev "github.com/goonma/sdk/eventdriven"
 	//"github.com/goonma/sdk/log"
 	//"github.com/goonma/sdk/pubsub/kafka"	
@@ -10,7 +10,8 @@ import (
 	"github.com/joho/godotenv"
 	//"context"
 	//"errors"
-	//"fmt"
+	"fmt"
+	"time"
 )
 type Worker struct{
 	worker.Worker
@@ -19,21 +20,26 @@ func main(){
 	//
 	var w Worker
 	//default worker don't initial publihser, if you want initial, set by bellow command
-	w.SetNoInitSubscriberLog(true)
-	w.SetNoInitSubscriberLog(true)
+	//w.SetNoInitSubscriberLog(true)
+	//w.SetNoInitSubscriberLog(true)
 	//no database
-	w.Initial("worker-demo",w.wkProcess,nil)//paste function process worker here
+	w.Initial("demo",w.wkProcess,nil)//paste function process worker here
 	//with database
 	//w.Initial("woker1",w.wkProcess,RemoteServices(),loadModel())//paste function process worker here
 	//
-	w.Start()
+	cf:=w.GetConfig()
+	c,err1:=cf.CheckItemExist("data/micro/local/cluster/svc/goonma/referral/config/RATIO_DIRECT_COMMISSION")
+	fmt.Println(c)
+	fmt.Println(err1)
+	//w.Start()
 }
 //process logic after consume Event from kafka
 //iportant return error to errs channel, if error nil-> ACK will be send to kafka
 //else ACK don't send, then Event will be loop forever
 func (wk *Worker)wkProcess(message *message.Message) error{
 	// wk.Mgo["col"].
-	//fmt.Println("DATA:",message.UUID, string(message.Payload))
+	fmt.Println("DATA:",string(message.Payload))
+	time.Sleep(2 * time.Second)
 	// payload => Event struct
 	//            EventName  => <service_name>-<method_name>
 	//            EventData
