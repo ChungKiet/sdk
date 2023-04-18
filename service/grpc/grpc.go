@@ -251,7 +251,7 @@ func (grpcSRV *GRPCServer)authFunc(ctx context.Context) (context.Context, error)
 			ctx = metadata.AppendToOutgoingContext(ctx, "roleid",utils.IntToS(claims.RoleID))
 		}
 		if len(md.Get("is_verify"))==0{
-			ctx = metadata.AppendToOutgoingContext(ctx, "is_verify",claims.IsVerify)
+			ctx = metadata.AppendToOutgoingContext(ctx, "is_verify",utils.ItoString(claims.IsVerify))
 		}
 	}
 	return ctx,nil
