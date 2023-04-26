@@ -398,10 +398,10 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 			//consumed_log=true
 			if err_p != nil { //Repush Event to main bus if process function has error
 				if sub.RePushEventFn != nil {
-					err := sub.RePushEventFn(event)
+					/*err := sub.RePushEventFn(event)
 					if err != nil {
 						log.Error(err.Msg(), "Consumer", "ProcessMesasge", event)
-					}
+					}*/
 				}
 			}
 		} else if err_p == nil { //local base on error, if error ==nil send ack
