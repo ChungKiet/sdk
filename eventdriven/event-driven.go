@@ -112,6 +112,9 @@ func (ev *EventDriven) Clean() {
 	ev.subscriber.Clean()
 	//}
 }
+func (ev *EventDriven) AutoSubscriberACK(v bool) {
+	ev.subscriber.SetNoAck(v)
+}
 
 /*
 Process Event Template

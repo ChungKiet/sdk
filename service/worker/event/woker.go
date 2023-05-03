@@ -193,7 +193,9 @@ func (w *Worker) SetNoInitSubscriberLog(i bool) {
 func (w *Worker) SetInitRedis(i bool) {
 	w.init_redis = i
 }
-
+func (w *Worker) AutoSubscriberACK(v bool) {
+	w.Sub.AutoSubscriberACK(v)
+}
 // start consumers
 func (w *Worker) Start() {
 	err := w.Sub.Subscribe()

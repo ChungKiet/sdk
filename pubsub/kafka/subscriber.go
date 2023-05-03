@@ -39,7 +39,7 @@ type Subscriber struct {
 	Redis         redis.CacheHelper
 	logConsumeFn  event.WriteLogConsumeFn
 	num_consumer  int
-	no_ack        bool
+	no_ack        bool //default alway send ack after process
 	no_inject     bool
 	//
 	config map[string]string
@@ -55,11 +55,11 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 		log.Warn(fmt.Sprintf("Error get Hostname: %s", err_h.Error()))
 	}
 	//prd, stg no resend
-	if os.Getenv("ENV") == "prd" || os.Getenv("ENV") == "stg" || os.Getenv("ENV") == "dev" {
+	/*if os.Getenv("ENV") == "prd" || os.Getenv("ENV") == "stg" || os.Getenv("ENV") == "dev" {
 		sub.SetNoAck(false)
 	} else { //local ENv resend message
 		sub.SetNoAck(true)
-	}
+	}*/
 	sub.id = worker_name + "_" + hostname
 	//
 
@@ -157,11 +157,11 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 		log.Warn(fmt.Sprintf("Error get Hostname: %s", err_h.Error()))
 	}
 	//prd, stg no resend
-	if os.Getenv("ENV") == "prd" || os.Getenv("ENV") == "stg" || os.Getenv("ENV") == "dev" {
+	/*if os.Getenv("ENV") == "prd" || os.Getenv("ENV") == "stg" || os.Getenv("ENV") == "dev" {
 		sub.SetNoAck(false)
 	} else { //local ENv resend message
 		sub.SetNoAck(true)
-	}
+	}*/
 	sub.id = worker_name + "_" + hostname
 	arr := utils.Explode(config_path, "/")
 	global_config_path := strings.Join(arr[:len(arr)-1], "/")
@@ -360,7 +360,7 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 	log.Info(fmt.Sprintf("Consumer: %s-[%s] started", sub.id, utils.ItoString(i)))
 
 	for msg := range messages {
-
+		
 		//process message
 		if !sub.no_inject {
 			err := InjectComsumeTime(msg)
@@ -404,10 +404,10 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 					}*/
 				}
 			}
-		} else if err_p == nil { //local base on error, if error ==nil send ack
+		}/* else if err_p == nil { //local base on error, if error ==nil send ack
 			msg.Ack()
 			//consumed_log=true
-		}
+		}*/
 		//-push item processed to kafka_item_succes, for kafka_item_fail push from router when TTL
 		if !sub.no_inject {
 			InjectFinishTime(&event)

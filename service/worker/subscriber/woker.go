@@ -179,6 +179,9 @@ func (w *Worker) SetInitPublisher(i bool) {
 func (w *Worker) SetInitSubscriberLog(i bool) {
 	w.init_subscriber_log=i
 }
+func (w *Worker) AutoSubscriberACK(v bool) {
+	w.Ed.AutoSubscriberACK(v)
+}
 func (w *Worker) SetNoUpdateProcessingTime(i bool) {
 	w.no_update_processing_time=i
 }
