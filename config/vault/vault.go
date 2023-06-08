@@ -169,7 +169,7 @@ func (v *Vault) ReadVAR(path string) string {
 	return ""
 }
 
-func (v *Vault) ReadSecret(path string) map[string]interface{} {
+func (v *Vault) ReadVARs(path string) map[string]interface{} {
 	if path == "" {
 		log.Error("ENV path is empty", "VAULT_ERROR")
 	}
