@@ -38,9 +38,18 @@ type CacheOption struct {
 	Value interface{}
 }
 
-func NewCacheHelper(vault *vault.Vault) (CacheHelper, *e.Error) {
+func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
 	//
-	config := GetConfig(vault, "cache/redis")
+	config_path := ""
+	if len(args) > 0 {
+		config_path = utils.ItoString(args[0])
+	}
+	globalConfig := GetConfig(vault, "cache/redis")
+	localConfig := GetConfig(vault, config_path)
+	config := MergeConfig(globalConfig, localConfig)
+	if config["HOST"] == "" {
+		return nil, e.New("HOST_IS_EMPTY", "INIT_REDIS")
+	}
 	addrs := utils.Explode(config["HOST"], ",")
 	password := config["PASSWORD"]
 	db := config["DB"]
@@ -107,4 +116,30 @@ func NewCacheHelperWithConfig(addrs []string, password string, db_index int) (Ca
 	return &RedisHelper{
 		Client: client,
 	}, nil
+}
+func MergeConfig(global,local map[string]string) map[string]string{
+	m:=utils.DictionaryString()
+	if utils.Map_contains(global,"HOST") || utils.Map_contains(local,"HOST"){
+		if utils.Map_contains(local,"HOST") && local["HOST"]!=""{
+			m["HOST"]=local["HOST"]
+		}else{
+			m["HOST"]=global["HOST"]
+		}
+	}
+	if utils.Map_contains(global,"DB") || utils.Map_contains(local,"DB"){
+		if utils.Map_contains(local,"DB") &&  local["DB"]!=""{
+			m["DB"]=local["DB"]
+		}else{
+			m["DB"]=global["DB"]
+		}
+	}
+	if utils.Map_contains(global,"PASSWORD") || utils.Map_contains(local,"PASSWORD"){
+		if utils.Map_contains(local,"PASSWORD") && local["PASSWORD"]!=""{
+			m["PASSWORD"]=local["PASSWORD"]
+		}else{
+			m["PASSWORD"]=global["PASSWORD"]
+		}
+	}
+	
+	return m
 }

@@ -11,7 +11,7 @@ import (
 	//"github.com/goonma/sdk/utils"
 	"github.com/goonma/sdk/config/vault"
 	"github.com/goonma/sdk/pubsub/kafka"
-	"github.com/goonma/sdk/cache/redis"
+	
 	"fmt"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
@@ -33,8 +33,7 @@ type GRPCServer struct {
 	service *grpc.Server
 	two_FA_Key  string
 	token_Key  string
-	//ACL db store
-	Redis redis.CacheHelper
+
 	//ACL cache
 	acl map[string]bool
 	whitelist []string
@@ -72,6 +71,7 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 	}
 	//set service name
 	grpcSRV.servicename=service_name
+	
 	//ReInitial Destination for Logger
 	if log.LogMode()!=2{// not in local, locall just output log to std
 		log_dest:=grpcSRV.config.ReadVAR("logger/general/LOG_DEST")
@@ -97,6 +97,7 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 		grpc.MaxSendMsgSize(maxMsgSize),
 		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(grpcSRV.authFunc)),//middleware verify authen
 	)
+	
 	//ACL init
 	/*
 	var err_r *e.Error 
@@ -113,6 +114,7 @@ func (grpcSRV *GRPCServer) Initial(service_name string,args...interface{}){
 		}
 		grpcSRV.whitelist=arr
 	}
+	
 }
 /*
 Start gRPC server with IP:Port from Initial step

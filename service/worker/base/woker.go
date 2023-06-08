@@ -7,7 +7,7 @@ import (
 	"github.com/goonma/sdk/config/vault"
 	ed "github.com/goonma/sdk/eventdriven"
 	"github.com/goonma/sdk/log"
-
+	r "github.com/goonma/sdk/cache/redis"
 	//"github.com/goonma/sdk/pubsub/kafka"
 	"github.com/goonma/sdk/db"
 	"github.com/goonma/sdk/db/mongo"
@@ -41,6 +41,10 @@ type Worker struct {
 	log_pub ed.EventDriven
 	//micro client
 	Client map[string]*micro.MicroClient
+	//detaul init redis cache
+	init_redis bool
+	//redis
+	Rd r.CacheHelper
 }
 
 // initial n worker
@@ -55,6 +59,7 @@ func (w *Worker) Initial(worker_name string, args ...interface{}) {
 	}
 	log.Initial(worker_name)
 	w.worker_name = worker_name
+	service_path := fmt.Sprintf("%s/%s", "worker", worker_name)
 	//initial Server configuration
 	var config vault.Vault
 	w.config = &config
@@ -93,6 +98,15 @@ func (w *Worker) Initial(worker_name string, args ...interface{}) {
 			}
 		}
 	}
+	//init redis
+	if w.init_redis {
+		fmt.Println("===Init Redis===")
+		redis, err_r := r.NewCacheHelper(w.config,service_path+"/redis")
+		if err_r != nil {
+			log.ErrorF(err_r.Msg())
+		}
+		w.Rd = redis
+	}
 }
 
 func (w *Worker) GetServiceName(eventName string) (string, error) {
@@ -127,7 +141,9 @@ func (w *Worker) InitialMicroClient(remote_services map[string]string, initConne
 	}
 	//
 }
-
+func (w *Worker) SetInitRedis(i bool) {
+	w.init_redis = i
+}
 func (w *Worker) GetDB(col_name string) (*mongo.Collection, *e.Error) {
 	if w.Mgo.Cols[col_name] != nil {
 		return w.Mgo.Cols[col_name], nil

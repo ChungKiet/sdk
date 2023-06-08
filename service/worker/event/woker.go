@@ -62,6 +62,7 @@ func (w *Worker) Initial(worker_name string, callbackfn event.ConsumeFn, args ..
 	log.Initial(worker_name)
 	w.worker_name = worker_name
 	//initial Server configuration
+	service_path := fmt.Sprintf("%s/%s", "worker", worker_name)
 	var config vault.Vault
 	w.config = &config
 	w.config.Initial(fmt.Sprintf("%s/%s", "worker", worker_name))
@@ -84,7 +85,7 @@ func (w *Worker) Initial(worker_name string, callbackfn event.ConsumeFn, args ..
 	//init redis
 	if w.init_redis {
 		fmt.Println("===Init Redis===")
-		redis, err_r := r.NewCacheHelper(w.config)
+		redis, err_r := r.NewCacheHelper(w.config,service_path+"/redis")
 		if err_r != nil {
 			log.ErrorF(err_r.Msg())
 		}
