@@ -119,6 +119,8 @@ func GetConfig(vault *vault.Vault,config_path string) map[string]string{
 	m["NUM_CONSUMER"]=vault.ReadVAR(fmt.Sprintf("%s/NUM_CONSUMER",config_path))
 	m["CONSUMER_GROUP"]=vault.ReadVAR(fmt.Sprintf("%s/CONSUMER_GROUP",config_path))
 	m["NUM_POD"]=vault.ReadVAR(fmt.Sprintf("%s/NUM_POD",config_path))
+	m["CONSUME_TYPE"]=vault.ReadVAR(fmt.Sprintf("%s/CONSUME_TYPE",config_path))
+	m["CONSUMER_GROUP_DYNAMIC"]=vault.ReadVAR(fmt.Sprintf("%s/CONSUMER_GROUP_DYNAMIC",config_path))
 	return m
 }
 
@@ -208,5 +210,20 @@ func MergeConfig(global,local map[string]string) map[string]string{
 			m["NUM_POD"]=global["NUM_POD"]
 		}
 	}
+	if utils.Map_contains(global,"CONSUMER_GROUP_DYNAMIC") || utils.Map_contains(local,"CONSUMER_GROUP_DYNAMIC"){
+		if utils.Map_contains(local,"CONSUMER_GROUP_DYNAMIC") && local["CONSUMER_GROUP_DYNAMIC"]!=""{
+			m["CONSUMER_GROUP_DYNAMIC"]=local["CONSUMER_GROUP_DYNAMIC"]
+		}else{
+			m["CONSUMER_GROUP_DYNAMIC"]=global["CONSUMER_GROUP_DYNAMIC"]
+		}
+	}
+	if utils.Map_contains(global,"CONSUME_TYPE") || utils.Map_contains(local,"CONSUME_TYPE"){
+		if utils.Map_contains(local,"CONSUME_TYPE") && local["CONSUME_TYPE"]!=""{
+			m["CONSUME_TYPE"]=local["CONSUME_TYPE"]
+		}else{
+			m["CONSUME_TYPE"]=global["CONSUME_TYPE"]
+		}
+	}
+	
 	return m
 }

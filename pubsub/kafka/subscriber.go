@@ -76,6 +76,11 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 		return e.New("Event Bus Number of Consumer must be number", "KAFKA", "CONSUMER")
 	}
 	sub.num_consumer = num_consumer
+	//
+	consumer_hostname:=""
+	if config_map["CONSUMER_GROUP_DYNAMIC"]=="true"{
+		consumer_hostname= "-"+hostname
+	}
 
 	if brokers_str == "" {
 		//log.ErrorF("Event Bus Brokers not found","KAFKA","KAFKA_CONSUMER_BROKER")
@@ -104,7 +109,7 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 			Brokers:               brokers,
 			Unmarshaler:           kafka.DefaultMarshaler{},
 			OverwriteSaramaConfig: conf,
-			ConsumerGroup:         consumer_group,
+			ConsumerGroup:         consumer_group+consumer_hostname,
 		},
 		//watermill.NewStdLogger(false, false),
 		nil,
@@ -143,7 +148,12 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-	sub.init_mode=0
+	if config_map["CONSUME_TYPE"]=="latest" {
+		sub.init_mode=1
+	}else{//default
+		sub.init_mode=0
+	}
+	
 	return nil
 }
 
@@ -177,6 +187,13 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	}
 	consumer_group := fmt.Sprintf("%s-%s-consumer-group", hostname, config_map["TOPIC"])
 	config_map["CONSUMER_GROUP"] = consumer_group
+	//
+	consumer_hostname:=""
+	if config_map["CONSUMER_GROUP_DYNAMIC"]=="true"{
+		consumer_hostname= "-"+hostname
+	}
+
+	//
 	sub.config = config_map
 	brokers_str := config_map["BROKERS"]
 	topic := ""
@@ -211,7 +228,7 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 			Brokers:               brokers,
 			Unmarshaler:           kafka.DefaultMarshaler{},
 			OverwriteSaramaConfig: conf,
-			ConsumerGroup:         consumer_group,
+			ConsumerGroup:         consumer_group+consumer_hostname,
 		},
 		//watermill.NewStdLogger(false, false),
 		nil,
@@ -247,12 +264,20 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-	sub.init_mode=1
+	if config_map["CONSUME_TYPE"]=="latest" {
+		sub.init_mode=1
+	}else{//default
+		sub.init_mode=0
+	}
 	return nil
 }
 
 // consume message
 func (sub *Subscriber) Consume() *e.Error {
+	hostname, err_h := os.Hostname()
+	if err_h != nil {
+		log.Warn(fmt.Sprintf("Error get Hostname: %s", err_h.Error()))
+	}
 	//healthSRV:=health.NewHealth("8080")
 	log.Info(fmt.Sprintf("Number of cosumer: %s", utils.ItoString(sub.num_consumer)))
 	//
@@ -261,9 +286,14 @@ func (sub *Subscriber) Consume() *e.Error {
 	//
 	//conf:=NewConfig(config_map)
 	//fmt.Printf("%+v",config_map)
+	consumer_hostname:=""
+	if sub.config["CONSUMER_GROUP_DYNAMIC"]=="true"{
+		consumer_hostname= "-"+hostname
+	}
+
 	brokers_str := sub.config["BROKERS"]
 	brokers := utils.Explode(brokers_str, ",")
-	consumer_group := sub.config["CONSUMER_GROUP"]
+	consumer_group := sub.config["CONSUMER_GROUP"]+consumer_hostname
 	//wait for other pod
 	str_num_pod := sub.config["NUM_POD"]
 	if str_num_pod != "" {
