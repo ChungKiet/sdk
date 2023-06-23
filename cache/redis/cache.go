@@ -47,6 +47,7 @@ func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
 	globalConfig := GetConfig(vault, "cache/redis")
 	localConfig := GetConfig(vault, config_path)
 	config := MergeConfig(globalConfig, localConfig)
+	//
 	if config["HOST"] == "" {
 		return nil, e.New("HOST_IS_EMPTY", "INIT_REDIS")
 	}
@@ -68,7 +69,7 @@ func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
 	//
 	if len(addrs) > 1 {
 		if config["TYPE"] == "SENTINEL" {
-			client, err := InitRedisSentinel(addrs[0], config["MASTER_NAME"], password, db_index)
+			client, err := InitRedisSentinel(config["HOST"], config["MASTER_NAME"], password, db_index)
 			if err != nil {
 				return nil, err
 			}
@@ -77,6 +78,7 @@ func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
 				Client: client,
 			}, nil
 		} else {
+			fmt.Println(2)
 			clusterClient, err := InitRedisCluster(addrs, password)
 			if err != nil {
 				return nil, err
@@ -140,6 +142,19 @@ func MergeConfig(global,local map[string]string) map[string]string{
 			m["PASSWORD"]=global["PASSWORD"]
 		}
 	}
-	
+	if utils.Map_contains(global,"TYPE") || utils.Map_contains(local,"TYPE"){
+		if utils.Map_contains(local,"TYPE") &&  local["TYPE"]!=""{
+			m["TYPE"]=local["TYPE"]
+		}else{
+			m["TYPE"]=global["TYPE"]
+		}
+	}
+	if utils.Map_contains(global,"MASTER_NAME") || utils.Map_contains(local,"MASTER_NAME"){
+		if utils.Map_contains(local,"MASTER_NAME") &&  local["MASTER_NAME"]!=""{
+			m["MASTER_NAME"]=local["MASTER_NAME"]
+		}else{
+			m["MASTER_NAME"]=global["MASTER_NAME"]
+		}
+	}
 	return m
 }

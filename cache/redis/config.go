@@ -16,12 +16,12 @@ func GetConfig(vault *vault.Vault,config_path string) map[string]string{
 			panic("Not found ENV")
 		}
 		//
-		m["HOST"]=os.Getenv("REDIS_HOST")
-		m["DB"]=os.Getenv("REDIS_DB")
-		m["PASSWORD"]=os.Getenv("REDIS_PASSWORD")
-		m["TYPE"]=os.Getenv("REDIS_TYPE")
-		m["MASTER_NAME"]=os.Getenv("REDIS_MASTER_NAME")
-		return m
+		//m["HOST"]=os.Getenv("REDIS_HOST")
+		//m["DB"]=os.Getenv("REDIS_DB")
+		//m["PASSWORD"]=os.Getenv("REDIS_PASSWORD")
+		//m["TYPE"]=os.Getenv("REDIS_TYPE")
+		//m["MASTER_NAME"]=os.Getenv("REDIS_MASTER_NAME")
+		//return m
 	}
 	config_path=strings.TrimSuffix(config_path,"/")
 	m["HOST"]=vault.ReadVAR(fmt.Sprintf("%s/HOST",config_path))
