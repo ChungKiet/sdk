@@ -45,7 +45,7 @@ func (w *Worker) Initial(worker_name string,args...interface{}) {
 	}
 	log.Initial(worker_name)
 	w.worker_name=worker_name
-	service_path := fmt.Sprintf("%s/%s", "worker", worker_name)
+	// service_path := fmt.Sprintf("%s/%s", "worker", worker_name)
 	//initial Server configuration
 	var config vault.Vault
 	w.config= &config
