@@ -1,8 +1,9 @@
 package websocket
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/goonma/sdk/log"
 	"github.com/gorilla/websocket"
@@ -19,7 +20,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 4096
 )
 
 var (
@@ -28,8 +29,8 @@ var (
 )
 
 var Upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -45,6 +46,8 @@ type Client struct {
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	isClosed bool
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
@@ -112,7 +115,7 @@ func (c *Client) WritePump() {
 				log.Error(err.Error(), "Websocket Write Pump")
 				return
 			}
-			w.Write(message)
+			_, err = w.Write(message)
 
 			// Add queued chat messages to the current websocket message.
 			// n := len(c.send)
@@ -121,7 +124,7 @@ func (c *Client) WritePump() {
 			// 	w.Write(<-c.send)
 			// }
 
-			if err := w.Close(); err != nil {
+			if err != nil {
 				return
 			}
 		case <-ticker.C:
@@ -142,6 +145,17 @@ func (c *Client) LeaveAllRooms() {
 		}
 	}
 	c.Rooms = []string{}
+}
+
+func (c *Client) Send(msg []byte) {
+	if !c.isClosed {
+		c.send <- msg
+	}
+}
+
+func (c *Client) Close() {
+	c.isClosed = true
+	close(c.send)
 }
 
 //// serveWs handles websocket requests from the peer.

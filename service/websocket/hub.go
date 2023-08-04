@@ -58,7 +58,8 @@ func (h *Hub) run() {
 		case client := <-h.Unregister:
 			if _, ok := h.Clients[client]; ok {
 				delete(h.Clients, client)
-				close(client.send)
+				client.Close()
+				client.LeaveAllRooms()
 			}
 		case cr := <-h.JoinRoom:
 			_, exist := h.Rooms[cr.Room]
@@ -81,7 +82,7 @@ func (h *Hub) run() {
 			}
 		case roomMsg := <-h.RoomBroadcast:
 			for client := range h.Rooms[roomMsg.Room] {
-				client.send <- roomMsg.Msg
+				client.Send(roomMsg.Msg)
 			}
 		}
 	}
