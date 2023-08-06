@@ -81,7 +81,7 @@ func (h *Hub) run() {
 			delete(cr.Client.Rooms, cr.Room)
 		case message := <-h.Broadcast:
 			for _, client := range h.Clients {
-				client.send <- message
+				client.Send(message)
 			}
 		case roomMsg := <-h.RoomBroadcast:
 			for client := range h.Rooms[roomMsg.Room] {
