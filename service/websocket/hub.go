@@ -58,17 +58,25 @@ func newHub() *Hub {
 	}
 }
 
+func (h *Hub) unregister(clientId string) {
+	if client, ok := h.Clients[clientId]; ok {
+		delete(h.Clients, clientId)
+		client.Close()
+		client.LeaveAllRooms()
+	}
+}
+
+func (h *Hub) leaveRoom(room string, c *Client) {
+	delete(c.Hub.Rooms[room], c)
+}
+
 func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.Register:
 			h.Clients[client.ID] = client
 		case client := <-h.Unregister:
-			if _, ok := h.Clients[client.ID]; ok {
-				delete(h.Clients, client.ID)
-				client.Close()
-				client.LeaveAllRooms()
-			}
+			h.unregister(client.ID)
 		case cr := <-h.JoinRoom:
 			_, exist := h.Rooms[cr.Room]
 			if !exist {
@@ -76,9 +84,9 @@ func (h *Hub) run() {
 			}
 			h.Rooms[cr.Room][cr.Client] = true
 			cr.Client.Rooms[cr.Room] = true
-		case cr := <-h.LeaveRoom:
-			delete(h.Rooms[cr.Room], cr.Client)
-			delete(cr.Client.Rooms, cr.Room)
+		case lr := <-h.LeaveRoom:
+			h.leaveRoom(lr.Room, lr.Client)
+			// delete(cr.Client.Rooms, cr.Room)
 		case message := <-h.Broadcast:
 			for _, client := range h.Clients {
 				client.Send(message)
@@ -89,6 +97,8 @@ func (h *Hub) run() {
 			}
 		case msg := <-h.ClientMsg:
 			msg.Client.Send(msg.Msg)
+			// default:
+			// 	log.Info("default hub")
 		}
 	}
 
