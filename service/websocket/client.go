@@ -72,8 +72,8 @@ func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *C
 		c.Hub.Unregister <- c
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
-	// c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	// c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -107,7 +107,10 @@ func (c *Client) WritePump() {
 			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				if err != nil {
+					log.Error("Websocket send close message", err.Error())
+				}
 				return
 			}
 
@@ -126,6 +129,7 @@ func (c *Client) WritePump() {
 			// }
 
 			if err != nil {
+				log.Error("Websocket send message error ", err.Error())
 				return
 			}
 		case <-ticker.C:
@@ -151,13 +155,13 @@ func (c *Client) LeaveAllRooms() {
 func (c *Client) Send(msg []byte) {
 	if !c.isClosed {
 		c.send <- msg
+	} else {
+		close(c.send)
 	}
 }
 
 func (c *Client) Close() {
 	c.isClosed = true
-	close(c.send)
-	c.Conn.Close()
 }
 
 //// serveWs handles websocket requests from the peer.
