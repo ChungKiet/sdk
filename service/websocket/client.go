@@ -72,8 +72,8 @@ func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *C
 		c.Hub.Unregister <- c
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	// c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	// c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
