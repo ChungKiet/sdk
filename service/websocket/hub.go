@@ -5,6 +5,11 @@ type RoomBroadCastMsg struct {
 	Msg  []byte
 }
 
+type ClientMessage struct {
+	Client *Client
+	Msg    []byte
+}
+
 type ClientRoom struct {
 	Room   string
 	Client *Client
@@ -14,7 +19,7 @@ type ClientRoom struct {
 // clients.
 type Hub struct {
 	// Registered Clients.
-	Clients map[*Client]bool
+	Clients map[string]*Client
 
 	// Rooms
 	Rooms map[string]map[*Client]bool
@@ -23,8 +28,10 @@ type Hub struct {
 	Broadcast chan []byte
 
 	// room broadcast recevive channel
+	RoomBroadcast chan *RoomBroadCastMsg
 
-	RoomBroadcast chan RoomBroadCastMsg
+	// client message direct
+	ClientMsg chan *ClientMessage
 
 	// Register requests from the clients.
 	Register chan *Client
@@ -32,21 +39,22 @@ type Hub struct {
 	// Unregister requests from clients.
 	Unregister chan *Client
 
-	JoinRoom chan ClientRoom
+	JoinRoom chan *ClientRoom
 
-	LeaveRoom chan ClientRoom
+	LeaveRoom chan *ClientRoom
 }
 
 func newHub() *Hub {
 	return &Hub{
 		Rooms:         make(map[string]map[*Client]bool),
-		RoomBroadcast: make(chan RoomBroadCastMsg),
+		RoomBroadcast: make(chan *RoomBroadCastMsg),
+		ClientMsg:     make(chan *ClientMessage),
 		Broadcast:     make(chan []byte),
 		Register:      make(chan *Client),
 		Unregister:    make(chan *Client),
-		JoinRoom:      make(chan ClientRoom),
-		LeaveRoom:     make(chan ClientRoom),
-		Clients:       make(map[*Client]bool),
+		JoinRoom:      make(chan *ClientRoom),
+		LeaveRoom:     make(chan *ClientRoom),
+		Clients:       make(map[string]*Client),
 	}
 }
 
@@ -54,10 +62,10 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.Register:
-			h.Clients[client] = true
+			h.Clients[client.ID] = client
 		case client := <-h.Unregister:
-			if _, ok := h.Clients[client]; ok {
-				delete(h.Clients, client)
+			if _, ok := h.Clients[client.ID]; ok {
+				delete(h.Clients, client.ID)
 				client.Close()
 				client.LeaveAllRooms()
 			}
@@ -71,19 +79,16 @@ func (h *Hub) run() {
 		case cr := <-h.LeaveRoom:
 			delete(h.Rooms[cr.Room], cr.Client)
 		case message := <-h.Broadcast:
-			for client := range h.Clients {
-				select {
-				case client.send <- message:
-				default:
-					client.LeaveAllRooms()
-					close(client.send)
-					delete(h.Clients, client)
-				}
+			for _, client := range h.Clients {
+				client.send <- message
 			}
 		case roomMsg := <-h.RoomBroadcast:
 			for client := range h.Rooms[roomMsg.Room] {
 				client.Send(roomMsg.Msg)
 			}
+		case msg := <-h.ClientMsg:
+			msg.Client.Send(msg.Msg)
 		}
 	}
+
 }

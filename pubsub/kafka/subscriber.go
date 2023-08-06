@@ -42,7 +42,7 @@ type Subscriber struct {
 	no_ack        bool //default alway send ack after process
 	no_inject     bool
 	//
-	config map[string]string
+	config    map[string]string
 	init_mode int
 }
 
@@ -77,9 +77,9 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	}
 	sub.num_consumer = num_consumer
 	//
-	consumer_hostname:=""
-	if config_map["CONSUMER_GROUP_DYNAMIC"]=="true"{
-		consumer_hostname= "-"+hostname
+	consumer_hostname := ""
+	if config_map["CONSUMER_GROUP_DYNAMIC"] == "true" {
+		consumer_hostname = "-" + hostname
 	}
 
 	if brokers_str == "" {
@@ -109,7 +109,7 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 			Brokers:               brokers,
 			Unmarshaler:           kafka.DefaultMarshaler{},
 			OverwriteSaramaConfig: conf,
-			ConsumerGroup:         consumer_group+consumer_hostname,
+			ConsumerGroup:         consumer_group + consumer_hostname,
 		},
 		//watermill.NewStdLogger(false, false),
 		nil,
@@ -148,12 +148,12 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-	if config_map["CONSUME_TYPE"]=="latest" {
-		sub.init_mode=1
-	}else{//default
-		sub.init_mode=0
+	if config_map["CONSUME_TYPE"] == "latest" {
+		sub.init_mode = 1
+	} else { //default
+		sub.init_mode = 0
 	}
-	
+
 	return nil
 }
 
@@ -188,9 +188,9 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	consumer_group := fmt.Sprintf("%s-%s-consumer-group", hostname, config_map["TOPIC"])
 	config_map["CONSUMER_GROUP"] = consumer_group
 	//
-	consumer_hostname:=""
-	if config_map["CONSUMER_GROUP_DYNAMIC"]=="true"{
-		consumer_hostname= "-"+hostname
+	consumer_hostname := ""
+	if config_map["CONSUMER_GROUP_DYNAMIC"] == "true" {
+		consumer_hostname = "-" + hostname
 	}
 
 	//
@@ -228,7 +228,8 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 			Brokers:               brokers,
 			Unmarshaler:           kafka.DefaultMarshaler{},
 			OverwriteSaramaConfig: conf,
-			ConsumerGroup:         consumer_group+consumer_hostname,
+			ConsumerGroup:         consumer_group + consumer_hostname,
+			ReconnectRetrySleep:   time.Second,
 		},
 		//watermill.NewStdLogger(false, false),
 		nil,
@@ -264,10 +265,10 @@ func (sub *Subscriber) InitialWithGlobal(vault *vault.Vault, config_path string,
 	} else {
 		fmt.Println("=>Log consumedFn: False")
 	}
-	if config_map["CONSUME_TYPE"]=="latest" {
-		sub.init_mode=1
-	}else{//default
-		sub.init_mode=0
+	if config_map["CONSUME_TYPE"] == "latest" {
+		sub.init_mode = 1
+	} else { //default
+		sub.init_mode = 0
 	}
 	return nil
 }
@@ -286,14 +287,14 @@ func (sub *Subscriber) Consume() *e.Error {
 	//
 	//conf:=NewConfig(config_map)
 	//fmt.Printf("%+v",config_map)
-	consumer_hostname:=""
-	if sub.config["CONSUMER_GROUP_DYNAMIC"]=="true"{
-		consumer_hostname= "-"+hostname
+	consumer_hostname := ""
+	if sub.config["CONSUMER_GROUP_DYNAMIC"] == "true" {
+		consumer_hostname = "-" + hostname
 	}
 
 	brokers_str := sub.config["BROKERS"]
 	brokers := utils.Explode(brokers_str, ",")
-	consumer_group := sub.config["CONSUMER_GROUP"]+consumer_hostname
+	consumer_group := sub.config["CONSUMER_GROUP"] + consumer_hostname
 	//wait for other pod
 	str_num_pod := sub.config["NUM_POD"]
 	if str_num_pod != "" {
@@ -326,9 +327,9 @@ func (sub *Subscriber) Consume() *e.Error {
 	for i := 0; i < sub.num_consumer; i++ {
 		//config
 		conf := NewConsumerConfig(sub.config)
-		if sub.init_mode==0{
+		if sub.init_mode == 0 {
 			conf.Consumer.Offsets.Initial = sarama.OffsetOldest
-		}else{
+		} else {
 			conf.Consumer.Offsets.Initial = sarama.OffsetNewest
 		}
 		//sarama.OffsetOldest get from last offset not yet commit
@@ -390,7 +391,7 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 	log.Info(fmt.Sprintf("Consumer: %s-[%s] started", sub.id, utils.ItoString(i)))
 
 	for msg := range messages {
-		
+
 		//process message
 		if !sub.no_inject {
 			err := InjectComsumeTime(msg)
@@ -434,7 +435,7 @@ func (sub *Subscriber) ProcessMesasge(i int, messages <-chan *message.Message) {
 					}*/
 				}
 			}
-		}/* else if err_p == nil { //local base on error, if error ==nil send ack
+		} /* else if err_p == nil { //local base on error, if error ==nil send ack
 			msg.Ack()
 			//consumed_log=true
 		}*/

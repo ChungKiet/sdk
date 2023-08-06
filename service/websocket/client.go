@@ -35,7 +35,8 @@ var Upgrader = websocket.Upgrader{
 
 // Client is a middleman between the websocket connection and the hub.
 type Client struct {
-	ID string
+	ID     string
+	UserId string
 
 	Hub *Hub
 
@@ -68,11 +69,10 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *Client)) {
 	defer func() {
 		c.Hub.Unregister <- c
-		c.Conn.Close()
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
 	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	// c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -98,7 +98,7 @@ func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
-		c.Conn.Close()
+		c.Hub.Unregister <- c
 	}()
 	for {
 		select {
@@ -139,7 +139,7 @@ func (c *Client) WritePump() {
 
 func (c *Client) LeaveAllRooms() {
 	for _, room := range c.Rooms {
-		c.Hub.LeaveRoom <- ClientRoom{
+		c.Hub.LeaveRoom <- &ClientRoom{
 			Client: c,
 			Room:   room,
 		}
