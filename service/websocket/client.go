@@ -40,7 +40,7 @@ type Client struct {
 
 	Hub *Hub
 
-	Rooms []string
+	Rooms map[string]bool
 
 	// The websocket connection.
 	Conn *websocket.Conn
@@ -53,11 +53,12 @@ type Client struct {
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	return &Client{
-		ID:    uuid.New().String(),
-		Hub:   hub,
-		Rooms: make([]string, 0),
-		Conn:  conn,
-		send:  make(chan []byte, 256),
+		ID:       uuid.New().String(),
+		Hub:      hub,
+		Rooms:    make(map[string]bool),
+		Conn:     conn,
+		send:     make(chan []byte, 256),
+		isClosed: false,
 	}
 }
 
@@ -71,12 +72,12 @@ func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *C
 		c.Hub.Unregister <- c
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
-	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	// c.Conn.SetReadDeadline(time.Now().Add(pongWait))
 	// c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
-			c.LeaveAllRooms()
+			c.Hub.Unregister <- c
 			log.Error(err.Error(), "Websocket Read Pump")
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Error(err.Error(), "Websocket Read Pump")
@@ -138,13 +139,13 @@ func (c *Client) WritePump() {
 }
 
 func (c *Client) LeaveAllRooms() {
-	for _, room := range c.Rooms {
+	for room := range c.Rooms {
 		c.Hub.LeaveRoom <- &ClientRoom{
 			Client: c,
 			Room:   room,
 		}
 	}
-	c.Rooms = []string{}
+	c.Rooms = make(map[string]bool)
 }
 
 func (c *Client) Send(msg []byte) {
@@ -156,6 +157,7 @@ func (c *Client) Send(msg []byte) {
 func (c *Client) Close() {
 	c.isClosed = true
 	close(c.send)
+	c.Conn.Close()
 }
 
 //// serveWs handles websocket requests from the peer.

@@ -75,9 +75,10 @@ func (h *Hub) run() {
 				h.Rooms[cr.Room] = map[*Client]bool{}
 			}
 			h.Rooms[cr.Room][cr.Client] = true
-			cr.Client.Rooms = append(cr.Client.Rooms, cr.Room)
+			cr.Client.Rooms[cr.Room] = true
 		case cr := <-h.LeaveRoom:
 			delete(h.Rooms[cr.Room], cr.Client)
+			delete(cr.Client.Rooms, cr.Room)
 		case message := <-h.Broadcast:
 			for _, client := range h.Clients {
 				client.send <- message
