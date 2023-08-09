@@ -8,6 +8,7 @@ import (
 	ev "github.com/goonma/sdk/base/event"
 	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
+
 	//"github.com/goonma/sdk/log"
 	"github.com/goonma/sdk/pubsub/kafka"
 
@@ -97,6 +98,25 @@ func (ev *EventDriven) Publish(event ev.Event) *e.Error {
 		return e.New(err.Error(), "EVENT_DRIVEN", "PUBLISH")
 	}
 	return ev.publisher.Publish(data)
+}
+
+func (ev *EventDriven) PublishWithPartitioning(event ev.Event, key string) *e.Error {
+	event.EventID = uuid.New()
+	if !ev.un_set_pushlish_time {
+		event.PushlishTime = time.Now()
+	}
+	event.ProcessedFlow = event.ProcessedFlow + "->" + ev.id
+	if event.Transaction_start_time == 0 { //create new txn
+		event.Transaction_id = uuid.New()
+		event.Transaction_start_time = time.Now().Unix()
+	}
+	//serialize event
+	data, err := json.Marshal(event)
+	if err != nil {
+		//log.Error(err.Error(),"EVENT_DRIVEN_SERIALIZE")
+		return e.New(err.Error(), "EVENT_DRIVEN", "PUBLISH")
+	}
+	return ev.publisher.PublishWithPartitioning(data, key)
 }
 
 // get event from BUS
