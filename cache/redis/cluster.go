@@ -289,3 +289,59 @@ func (h *ClusterRedisHelper) IncreaseMinValue(keys []string, value int) (string,
 
 	return "", nil
 }
+
+func (h *ClusterRedisHelper) MGet(key ...string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.MGet(key...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *ClusterRedisHelper) HGet(key string, field string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HGet(key, field).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *ClusterRedisHelper) HMGet(key string, field ...string) ([]interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HMGet(key, field...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *ClusterRedisHelper) HGetAll(key string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HGetAll(key).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *ClusterRedisHelper) HSet(key string, value ...interface{}) (interface{}, *e.Error) {
+	return nil, e.New("not implement")
+}
+
+func (h *ClusterRedisHelper) HMSet(key string, field ...interface{}) (interface{}, *e.Error) {
+	return nil, e.New("not implement")
+}
