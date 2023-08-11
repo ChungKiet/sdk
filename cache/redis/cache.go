@@ -15,10 +15,16 @@ import (
 type CacheHelper interface {
 	Exists(key string) (bool, *e.Error)
 	Get(key string) (interface{}, *e.Error)
+	MGet(key ...string) (interface{}, *e.Error)
+	HGet(key string, field string) (interface{}, *e.Error)
+	HMGet(key string, field ...string) ([]interface{}, *e.Error)
+	HGetAll(key string) (interface{}, *e.Error)
 	GetWithContext(ctx context.Context, key string) (interface{}, *e.Error)
 	GetInterface(key string, value interface{}) (interface{}, *e.Error)
 	GetInterfaceWithContext(ctx context.Context, key string, value interface{}) (interface{}, *e.Error)
 	Set(key string, value interface{}, expiration time.Duration) *e.Error
+	HSet(key string, value ...interface{}) (interface{}, *e.Error)
+	HMSet(key string, field ...interface{}) (interface{}, *e.Error)
 	SetWithContext(ctx context.Context, key string, value interface{}, expiration time.Duration) *e.Error
 	Del(key string) *e.Error
 	Expire(key string, expiration time.Duration) *e.Error
@@ -38,7 +44,7 @@ type CacheOption struct {
 	Value interface{}
 }
 
-func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
+func NewCacheHelper(vault *vault.Vault, args ...string) (CacheHelper, *e.Error) {
 	//
 	config_path := ""
 	if len(args) > 0 {
@@ -58,7 +64,7 @@ func NewCacheHelper(vault *vault.Vault,args ...string) (CacheHelper, *e.Error) {
 	if db_index < 0 { //default db
 		db_index = 0
 	}
-	log.Info(fmt.Sprintf("Initialing Redis: %s-%s", config["HOST"]), db_index)
+	log.Info(fmt.Sprintf("Initialing Redis: %s-%v", config["HOST"], db_index))
 	if len(addrs) == 0 {
 		return nil, e.New("Redis host not found", "REDIS", "NewCacheHelper")
 	} else {
@@ -119,41 +125,41 @@ func NewCacheHelperWithConfig(addrs []string, password string, db_index int) (Ca
 		Client: client,
 	}, nil
 }
-func MergeConfig(global,local map[string]string) map[string]string{
-	m:=utils.DictionaryString()
-	if utils.Map_contains(global,"HOST") || utils.Map_contains(local,"HOST"){
-		if utils.Map_contains(local,"HOST") && local["HOST"]!=""{
-			m["HOST"]=local["HOST"]
-		}else{
-			m["HOST"]=global["HOST"]
+func MergeConfig(global, local map[string]string) map[string]string {
+	m := utils.DictionaryString()
+	if utils.Map_contains(global, "HOST") || utils.Map_contains(local, "HOST") {
+		if utils.Map_contains(local, "HOST") && local["HOST"] != "" {
+			m["HOST"] = local["HOST"]
+		} else {
+			m["HOST"] = global["HOST"]
 		}
 	}
-	if utils.Map_contains(global,"DB") || utils.Map_contains(local,"DB"){
-		if utils.Map_contains(local,"DB") &&  local["DB"]!=""{
-			m["DB"]=local["DB"]
-		}else{
-			m["DB"]=global["DB"]
+	if utils.Map_contains(global, "DB") || utils.Map_contains(local, "DB") {
+		if utils.Map_contains(local, "DB") && local["DB"] != "" {
+			m["DB"] = local["DB"]
+		} else {
+			m["DB"] = global["DB"]
 		}
 	}
-	if utils.Map_contains(global,"PASSWORD") || utils.Map_contains(local,"PASSWORD"){
-		if utils.Map_contains(local,"PASSWORD") && local["PASSWORD"]!=""{
-			m["PASSWORD"]=local["PASSWORD"]
-		}else{
-			m["PASSWORD"]=global["PASSWORD"]
+	if utils.Map_contains(global, "PASSWORD") || utils.Map_contains(local, "PASSWORD") {
+		if utils.Map_contains(local, "PASSWORD") && local["PASSWORD"] != "" {
+			m["PASSWORD"] = local["PASSWORD"]
+		} else {
+			m["PASSWORD"] = global["PASSWORD"]
 		}
 	}
-	if utils.Map_contains(global,"TYPE") || utils.Map_contains(local,"TYPE"){
-		if utils.Map_contains(local,"TYPE") &&  local["TYPE"]!=""{
-			m["TYPE"]=local["TYPE"]
-		}else{
-			m["TYPE"]=global["TYPE"]
+	if utils.Map_contains(global, "TYPE") || utils.Map_contains(local, "TYPE") {
+		if utils.Map_contains(local, "TYPE") && local["TYPE"] != "" {
+			m["TYPE"] = local["TYPE"]
+		} else {
+			m["TYPE"] = global["TYPE"]
 		}
 	}
-	if utils.Map_contains(global,"MASTER_NAME") || utils.Map_contains(local,"MASTER_NAME"){
-		if utils.Map_contains(local,"MASTER_NAME") &&  local["MASTER_NAME"]!=""{
-			m["MASTER_NAME"]=local["MASTER_NAME"]
-		}else{
-			m["MASTER_NAME"]=global["MASTER_NAME"]
+	if utils.Map_contains(global, "MASTER_NAME") || utils.Map_contains(local, "MASTER_NAME") {
+		if utils.Map_contains(local, "MASTER_NAME") && local["MASTER_NAME"] != "" {
+			m["MASTER_NAME"] = local["MASTER_NAME"]
+		} else {
+			m["MASTER_NAME"] = global["MASTER_NAME"]
 		}
 	}
 	return m

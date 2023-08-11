@@ -109,6 +109,78 @@ func (h *RedisHelper) Get(key string) (interface{}, *e.Error) {
 	return value, nil
 }
 
+func (h *RedisHelper) MGet(key ...string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.MGet(context.Background(), key...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *RedisHelper) HGet(key string, field string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HGet(context.Background(), key, field).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *RedisHelper) HMGet(key string, field ...string) ([]interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HMGet(context.Background(), key, field...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *RedisHelper) HSet(key string, value ...interface{}) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HSet(context.Background(), key, value...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *RedisHelper) HMSet(key string, field ...interface{}) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HMSet(context.Background(), key, field...).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
+func (h *RedisHelper) HGetAll(key string) (interface{}, *e.Error) {
+	if h.Client == nil {
+		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
+	}
+	data, err := h.Client.HGetAll(context.Background(), key).Result()
+	if err != nil {
+		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
+	}
+
+	return data, nil
+}
+
 // return new value of key after increase old value
 func (h *RedisHelper) IncreaseInt(key string, value int) (int, *e.Error) {
 	if h.Client == nil {
