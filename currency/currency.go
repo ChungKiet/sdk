@@ -112,7 +112,10 @@ func ConvertInt64ToSystemCurrency(realValue int64, typeCurrency Currency) (Syste
 	}
 
 	value := decimal.NewFromInt(realValue)
-	systemValue := value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	systemValue := value
+	if typeCurrency > 0 {
+		systemValue = value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	}
 
 	systemCurrency := SystemCurrency{
 		Type:  typeCurrency,
@@ -130,7 +133,10 @@ func ConvertFloatToSystemCurrency(realValue float64, typeCurrency Currency) (Sys
 		return SystemCurrency{}, false
 	}
 	value := decimal.NewFromFloat(realValue)
-	systemValue := value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	systemValue := value
+	if typeCurrency > 0 {
+		systemValue = value.Mul(decimal.NewFromInt(int64(math.Pow10(SYSTEM_DECIMALS))))
+	}
 
 	systemCurrency := SystemCurrency{
 		Type:  typeCurrency,

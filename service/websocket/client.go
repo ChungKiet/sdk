@@ -72,8 +72,8 @@ func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *C
 		c.Hub.unregister(c.ID)
 	}()
 	c.Conn.SetReadLimit(maxMessageSize)
-	// c.Conn.SetReadDeadline(time.Now().Add(pongWait))
-	// c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	c.Conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.Conn.SetPongHandler(func(string) error { c.Conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
@@ -103,8 +103,7 @@ func (c *Client) WritePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			log.Info("send message ", string(message), c.ID, ok)
-			// c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
 				err := c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
@@ -137,12 +136,12 @@ func (c *Client) WritePump() {
 				log.Error("Websocket flush message error ", err)
 				return
 			}
-			// case <-ticker.C:
-			// 	c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-			// 	if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-			// 		log.Error(err.Error(), "Websocket ping error")
-			// 		return
-			// 	}
+		case <-ticker.C:
+			c.Conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Error(err.Error(), "Websocket ping error")
+				return
+			}
 		}
 	}
 }

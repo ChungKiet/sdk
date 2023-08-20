@@ -2,10 +2,11 @@ package websocket
 
 import (
 	"fmt"
-	j "github.com/goonma/sdk/jwt"
 	"net/http"
 	"os"
 	"strings"
+
+	j "github.com/goonma/sdk/jwt"
 
 	"context"
 	//"github.com/golang-jwt/jwt/v4"
@@ -15,15 +16,17 @@ import (
 	r "github.com/goonma/sdk/cache/redis"
 	"github.com/goonma/sdk/config/vault"
 	ed "github.com/goonma/sdk/eventdriven"
+
 	//j "github.com/goonma/sdk/jwt"
+	"os/signal"
+	"time"
+
 	"github.com/goonma/sdk/log"
 	"github.com/goonma/sdk/service/micro"
 	"github.com/goonma/sdk/utils"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"os/signal"
-	"time"
 )
 
 type Websocket struct {
@@ -203,7 +206,14 @@ func (w *Websocket) Start(betNetwork string) {
 		os.Exit(0)
 	}
 	fmt.Printf("HTTP Server start at: %s:%s\n", w.host, w.port)
-	go w.Hub.run()
+
+	go func() {
+		if err := w.Srv.Start(":" + w.port); err != nil && err != http.ErrServerClosed {
+			w.Srv.Logger.Fatal("shutting down the server")
+		}
+	}()
+
+	go w.Hub.start()
 	// Start server
 	for _, sub := range w.Sub {
 		go func(sub *ed.EventDriven) {
@@ -213,11 +223,6 @@ func (w *Websocket) Start(betNetwork string) {
 		}(sub)
 
 	}
-	go func() {
-		if err := w.Srv.Start(":" + w.port); err != nil && err != http.ErrServerClosed {
-			w.Srv.Logger.Fatal("shutting down the server")
-		}
-	}()
 	//gracefull shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)

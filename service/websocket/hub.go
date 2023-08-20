@@ -1,5 +1,7 @@
 package websocket
 
+import "fmt"
+
 type RoomBroadCastMsg struct {
 	Room string
 	Msg  []byte
@@ -70,36 +72,45 @@ func (h *Hub) leaveRoom(room string, c *Client) {
 	delete(c.Hub.Rooms[room], c)
 }
 
-func (h *Hub) run() {
+func (h *Hub) start() {
 	for {
-		select {
-		case client := <-h.Register:
-			h.Clients[client.ID] = client
-		case client := <-h.Unregister:
-			h.unregister(client.ID)
-		case cr := <-h.JoinRoom:
-			_, exist := h.Rooms[cr.Room]
-			if !exist {
-				h.Rooms[cr.Room] = map[*Client]bool{}
-			}
-			h.Rooms[cr.Room][cr.Client] = true
-			cr.Client.Rooms[cr.Room] = true
-		case lr := <-h.LeaveRoom:
-			h.leaveRoom(lr.Room, lr.Client)
-			// delete(cr.Client.Rooms, cr.Room)
-		case message := <-h.Broadcast:
-			for _, client := range h.Clients {
-				client.Send(message)
-			}
-		case roomMsg := <-h.RoomBroadcast:
-			for client := range h.Rooms[roomMsg.Room] {
-				client.Send(roomMsg.Msg)
-			}
-		case msg := <-h.ClientMsg:
-			msg.Client.Send(msg.Msg)
-			// default:
-			// 	log.Info("default hub")
+		h.run()
+	}
+}
+
+func (h *Hub) run() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panic error ", r)
 		}
+	}()
+	select {
+	case client := <-h.Register:
+		h.Clients[client.ID] = client
+	case client := <-h.Unregister:
+		h.unregister(client.ID)
+	case cr := <-h.JoinRoom:
+		_, exist := h.Rooms[cr.Room]
+		if !exist {
+			h.Rooms[cr.Room] = map[*Client]bool{}
+		}
+		h.Rooms[cr.Room][cr.Client] = true
+		cr.Client.Rooms[cr.Room] = true
+	case lr := <-h.LeaveRoom:
+		h.leaveRoom(lr.Room, lr.Client)
+		// delete(cr.Client.Rooms, cr.Room)
+	case message := <-h.Broadcast:
+		for _, client := range h.Clients {
+			client.Send(message)
+		}
+	case roomMsg := <-h.RoomBroadcast:
+		for client := range h.Rooms[roomMsg.Room] {
+			client.Send(roomMsg.Msg)
+		}
+	case msg := <-h.ClientMsg:
+		msg.Client.Send(msg.Msg)
+		// default:
+		// 	log.Info("default hub")
 	}
 
 }
