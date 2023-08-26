@@ -67,7 +67,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 // The application runs readPump in a per-connection goroutine. The application
 // ensures that there is at most one reader on a connection by executing all
 // reads from this goroutine.
-func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *Client)) {
+func (c *Client) ReadPump(handleAction func(c *Client, msg []byte), handleError func(cli *Client)) {
 	defer func() {
 		c.Hub.unregister(c.ID)
 	}()
@@ -85,7 +85,7 @@ func (c *Client) ReadPump(handleAction func(msg []byte), handleError func(cli *C
 			break
 		}
 
-		handleAction(message)
+		handleAction(c, message)
 	}
 }
 
