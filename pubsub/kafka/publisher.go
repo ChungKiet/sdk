@@ -15,9 +15,9 @@ import (
 )
 
 type Publisher struct {
-	publisher              *kafka.Publisher
+	publisher                 *kafka.Publisher
 	publisherWithPartitioning *kafka.Publisher
-	topic                  string
+	topic                     string
 }
 
 // Initial Publisher
@@ -179,6 +179,25 @@ func (pub *Publisher) InitialWithGlobal(vault *vault.Vault, config_path string, 
 		//watermill.NewStdLogger(false, false),
 		nil,
 	)
+
+	if err != nil {
+		return e.New(err.Error(), "KAFKA", "PUBLISHER")
+	}
+
+	marshaler := kafka.NewWithPartitioningMarshaler(func(topic string, msg *message.Message) (string, error) {
+		return msg.Metadata.Get("message_key"), nil
+	})
+
+	pub.publisherWithPartitioning, err = kafka.NewPublisher(
+		kafka.PublisherConfig{
+			Brokers:               brokers,
+			Marshaler:             marshaler,
+			OverwriteSaramaConfig: conf,
+		},
+		//watermill.NewStdLogger(false, false),
+		nil,
+	)
+
 	//not production
 	if err != nil {
 		if log.LogMode() != 0 {
@@ -228,6 +247,25 @@ func (pub *Publisher) InitialManual(config_map map[string]string, publisher_name
 		//watermill.NewStdLogger(false, false),
 		nil,
 	)
+
+	if err != nil {
+		return e.New(err.Error(), "KAFKA", "PUBLISHER")
+	}
+
+	marshaler := kafka.NewWithPartitioningMarshaler(func(topic string, msg *message.Message) (string, error) {
+		return msg.Metadata.Get("message_key"), nil
+	})
+
+	pub.publisherWithPartitioning, err = kafka.NewPublisher(
+		kafka.PublisherConfig{
+			Brokers:               brokers,
+			Marshaler:             marshaler,
+			OverwriteSaramaConfig: conf,
+		},
+		//watermill.NewStdLogger(false, false),
+		nil,
+	)
+
 	//not production
 	if err != nil {
 		if log.LogMode() != 0 {
