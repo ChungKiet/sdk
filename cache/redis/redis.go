@@ -98,6 +98,9 @@ func (h *RedisHelper) Get(key string) (interface{}, *e.Error) {
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
 	data, err := h.Client.Get(context.Background(), key).Result()
+	if err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
 	}

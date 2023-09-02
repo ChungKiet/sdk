@@ -129,7 +129,7 @@ func (micro *Micro) Initial(config *vault.Vault, args ...interface{}) {
 	//init redis
 	if micro.init_redis {
 		fmt.Println("===Init Redis===")
-		redis, err_r := r.NewCacheHelper(micro.Config,service_path+"/redis")
+		redis, err_r := r.NewCacheHelper(micro.Config, service_path+"/redis")
 		if err_r != nil {
 			log.ErrorF(err_r.Msg())
 		}
