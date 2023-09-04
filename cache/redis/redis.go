@@ -98,6 +98,9 @@ func (h *RedisHelper) Get(key string) (interface{}, *e.Error) {
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
 	data, err := h.Client.Get(context.Background(), key).Result()
+	if err != nil && err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
 	}
@@ -309,6 +312,9 @@ func (h *RedisHelper) Set(key string, value interface{}, expiration time.Duratio
 	}
 
 	_, err = h.Client.Set(context.Background(), key, string(data), expiration).Result()
+	if err != nil && err == redis.Nil {
+		return nil
+	}
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "SET REDIS")
 	}
@@ -417,6 +423,9 @@ func (h *RedisHelper) GetWithContext(ctx context.Context, key string) (interface
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS GET")
 	}
 	data, err := h.Client.Get(ctx, key).Result()
+	if err != nil && err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "GET_KEY")
 	}
@@ -485,6 +494,9 @@ func (h *RedisHelper) SetWithContext(ctx context.Context, key string, value inte
 	}
 
 	_, err = h.Client.Set(ctx, key, string(data), expiration).Result()
+	if err != nil && err == redis.Nil {
+		return nil
+	}
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "SET REDIS")
 	}

@@ -55,6 +55,9 @@ func (h *ClusterRedisHelper) Get(key string) (interface{}, *e.Error) {
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS Get")
 	}
 	data, err := h.Client.Get(key).Result()
+	if err != nil && err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
 	}
@@ -72,6 +75,9 @@ func (h *ClusterRedisHelper) GetWithContext(ctx context.Context, key string) (in
 		return nil, e.New("Redis Client is null", "REDIS", "REDIS Get")
 	}
 	data, err := h.Client.Get(key).Result()
+	if err != nil && err == redis.Nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, e.New(err.Error(), "REDIS", "GET REDIS CLUSTER")
 	}
@@ -193,6 +199,9 @@ func (h *ClusterRedisHelper) Set(key string, value interface{}, expiration time.
 		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
 	}
 	_, err = h.Client.Set(key, string(data), expiration).Result()
+	if err != nil && err == redis.Nil {
+		return nil
+	}
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
 	}
@@ -208,6 +217,9 @@ func (h *ClusterRedisHelper) SetWithContext(ctx context.Context, key string, val
 		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
 	}
 	_, err = h.Client.Set(key, string(data), expiration).Result()
+	if err != nil && err == redis.Nil {
+		return nil
+	}
 	if err != nil {
 		return e.New(err.Error(), "REDIS", "SET REDIS CLUSTER")
 	}
