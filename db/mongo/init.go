@@ -1,16 +1,19 @@
 package mongo
 
 import (
+	"strings"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
+
 /*
 Write concern:
 	-[1]: primary only => default
 	-[2]: 1 primary + 1 secondary , same for 2,3...
-	-[0]: majority: (total node/2 + 1)   
+	-[0]: majority: (total node/2 + 1)
 */
 /*
 Read concern
@@ -30,7 +33,7 @@ var (
 
 type Configuration struct {
 	AuthMechanism      string
-	Host            string
+	Host               string
 	Username           string
 	Password           string
 	AuthDB             string
@@ -39,22 +42,34 @@ type Configuration struct {
 	SSL                bool
 	SecondaryPreferred bool
 	DoHealthCheck      bool
+	WriteConcern       bool
+	ReadConcern        bool
 }
 
-func MapToDBConfig(m map[string]string) Configuration{
-	cfg:=Configuration{
-		Host: m["HOST"],
-		DatabaseName: m["DB"],
-		Username: m["USERNAME"],
-		Password: m["PASSWORD"],
-		AuthDB: m["AUTHDB"],
+func MapToDBConfig(m map[string]string) Configuration {
+	cfg := Configuration{
+		Host:           m["HOST"],
+		DatabaseName:   m["DB"],
+		Username:       m["USERNAME"],
+		Password:       m["PASSWORD"],
+		AuthDB:         m["AUTHDB"],
 		ReplicaSetName: m["RS_NAME"],
 	}
-	return cfg	
+
+	if strings.ToLower(m["WRITE_CONCERN"]) == "true" {
+		cfg.WriteConcern = true
+	}
+
+	if strings.ToLower(m["READ_CONCERN"]) == "true" {
+		cfg.ReadConcern = true
+	}
+
+	return cfg
 }
-//  Find mongodb isolation levels at:
-//	https://docs.mongodb.com/manual/reference/read-concern/
-//	https://docs.mongodb.com/manual/reference/write-concern/
+
+//	 Find mongodb isolation levels at:
+//		https://docs.mongodb.com/manual/reference/read-concern/
+//		https://docs.mongodb.com/manual/reference/write-concern/
 type Isolation struct {
 	Read  *readconcern.ReadConcern
 	Write *writeconcern.WriteConcern
@@ -72,7 +87,7 @@ type OnConnectedHandler = func(database *mongo.Database) error
 type TransactionHandler = func(ctx mongo.SessionContext) (interface{}, error)
 
 func MapCusorI_contains(m map[string]*Client, item string) bool {
-	if len(m)==0{
+	if len(m) == 0 {
 		return false
 	}
 	if _, ok := m[item]; ok {

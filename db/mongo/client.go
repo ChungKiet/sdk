@@ -3,19 +3,23 @@ package mongo
 import (
 	"context"
 	"errors"
+	"os"
+	"time"
+
+	"github.com/goonma/sdk/db/mongo/status"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readconcern"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"github.com/goonma/sdk/db/mongo/status"
-	"os"
-	"time"
+	"go.mongodb.org/mongo-driver/mongo/writeconcern"
 )
+
 /*
 Write concern:
 	-[1]: primary only => default
 	-[2]: 1 primary + 1 secondary , same for 2,3...
-	-[0]: majority: (total node/2 + 1)   
+	-[0]: majority: (total node/2 + 1)
 */
 /*
 Read concern
@@ -35,9 +39,9 @@ func (c *Client) Connect() error {
 	hostname, _ := os.Hostname()
 	heartBeat := 60 * time.Second
 	maxIdle := 180 * time.Second
-	socketTimeout:= 60 * time.Second
-	connectTimeout:= 60 * time.Second
-	serverSelectTimeout:= 60 * time.Second
+	socketTimeout := 60 * time.Second
+	connectTimeout := 60 * time.Second
+	serverSelectTimeout := 60 * time.Second
 	min := uint64(2)
 
 	// setup options
@@ -49,13 +53,22 @@ func (c *Client) Connect() error {
 			Username:      c.Config.Username,
 			Password:      c.Config.Password,
 		},
-		HeartbeatInterval: &heartBeat,
-		MaxConnIdleTime:   &maxIdle,
-		MinPoolSize:       &min,
-		SocketTimeout: &socketTimeout,
-		ConnectTimeout: &connectTimeout,
-		ServerSelectionTimeout: &serverSelectTimeout,            
+		HeartbeatInterval:      &heartBeat,
+		MaxConnIdleTime:        &maxIdle,
+		MinPoolSize:            &min,
+		SocketTimeout:          &socketTimeout,
+		ConnectTimeout:         &connectTimeout,
+		ServerSelectionTimeout: &serverSelectTimeout,
 	}
+
+	if c.Config.WriteConcern {
+		opt.WriteConcern = writeconcern.New(writeconcern.WMajority())
+	}
+
+	if c.Config.ReadConcern {
+		opt.ReadConcern = readconcern.Majority()
+	}
+
 	opt.ApplyURI(c.Config.Host)
 	if c.Config.SecondaryPreferred {
 		opt.ReadPreference = readpref.SecondaryPreferred()
