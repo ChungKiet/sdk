@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/goonma/sdk/utils"
+
 	"github.com/Shopify/sarama"
+	"github.com/goonma/sdk/utils"
 	"go.uber.org/zap"
 )
 
@@ -36,8 +37,8 @@ func getKafkaSink(brokers []string, topic string, config *sarama.Config) kafkaSi
 // InitKafkaSink  create kafka sink instance
 func InitKafkaSink(u *url.URL) (zap.Sink, error) {
 	topic := kafkaDefaultTopic
-	username:=""
-	password:=""
+	username := ""
+	password := ""
 	if t := u.Query().Get("topic"); len(t) > 0 {
 		topic = t
 	}
@@ -47,7 +48,7 @@ func InitKafkaSink(u *url.URL) (zap.Sink, error) {
 	if t := u.Query().Get("password"); len(t) > 0 {
 		password = t
 	}
-	brokers:=utils.Explode(u.Host,",")
+	brokers := utils.Explode(u.Host, ",")
 	//brokers := []string{arr}
 	instKey := strings.Join(brokers, ",")
 	if v, ok := kafkaSinkInsts[instKey]; ok {
@@ -57,10 +58,10 @@ func InitKafkaSink(u *url.URL) (zap.Sink, error) {
 	config.Producer.Return.Successes = true
 	config.Metadata.Full = true
 	//conf.Version = sarama.V0_10_0_0
-	if username!="" && password!=""{
+	if username != "" && password != "" {
 		config.Net.SASL.Enable = true
 		config.Net.SASL.User = username
-		config.Net.SASL.Password =password
+		config.Net.SASL.Password = password
 		config.Net.SASL.Handshake = true
 	}
 	//

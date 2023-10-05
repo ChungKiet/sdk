@@ -69,6 +69,10 @@ func (ev *EventDriven) InitialSubscriberWithGlobal(vault *vault.Vault, config_pa
 	return nil
 }
 
+func (ev *EventDriven) DisableInitRedisPod(v bool) {
+	ev.subscriber.SetDisableInitRedisPod(v)
+}
+
 func (ev *EventDriven) SetNoEvent(v bool) {
 	ev.subscriber.SetNoInject(v)
 }
