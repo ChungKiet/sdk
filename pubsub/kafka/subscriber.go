@@ -42,8 +42,9 @@ type Subscriber struct {
 	no_ack        bool //default alway send ack after process
 	no_inject     bool
 	//
-	config    map[string]string
-	init_mode int
+	config           map[string]string
+	init_mode        int
+	disableInitRedis bool
 }
 
 // Initial Publisher
@@ -134,13 +135,15 @@ func (sub *Subscriber) Initial(vault *vault.Vault, config_path string, worker_na
 	} else {
 		fmt.Println("===========Ignore Initiation Processed Item Log======")
 	}
-	//	fmt.Println("===========Initiation Redis for delete Uid: True======")
-	fmt.Println("===========Initiation Redis for check other pod ready======")
-	var errc *e.Error
-	sub.Redis, errc = redis.NewCacheHelper(vault)
+	if !sub.disableInitRedis {
+		//	fmt.Println("===========Initiation Redis for delete Uid: True======")
+		fmt.Println("===========Initiation Redis for check other pod ready======")
+		var errc *e.Error
+		sub.Redis, errc = redis.NewCacheHelper(vault)
 
-	if errc != nil {
-		return errc
+		if errc != nil {
+			return errc
+		}
 	}
 	fmt.Println("=>No inject: ", sub.no_inject)
 	if sub.logConsumeFn == nil {
@@ -297,7 +300,7 @@ func (sub *Subscriber) Consume() *e.Error {
 	consumer_group := sub.config["CONSUMER_GROUP"] + consumer_hostname
 	//wait for other pod
 	str_num_pod := sub.config["NUM_POD"]
-	if str_num_pod != "" {
+	if str_num_pod != "" && !sub.disableInitRedis {
 		//pod start success => increase number of pod
 		_, err := sub.Redis.IncreaseInt(consumer_group, 1)
 		if err != nil {
@@ -460,6 +463,10 @@ func (sub *Subscriber) SetNoAck(no_ack bool) {
 
 func (sub *Subscriber) SetNoInject(no_inject bool) {
 	sub.no_inject = no_inject
+}
+
+func (sub *Subscriber) SetDisableInitRedisPod(v bool) {
+	sub.disableInitRedis = v
 }
 
 func (sub *Subscriber) SetPushlisher(fn event.RePushFn) {
